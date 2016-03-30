@@ -40,3 +40,9 @@ Note: For every new terminal you open up, you will have to run the following:
 $ source devel/setup.bash
 $ ./baxter.sh sim
 ```
+
+Useful commands: 
+```bash
+$ killall gzserver         when system_launch dies and refuses to restart
+$ rosrun hello_baxter hello_baxter.py    run a script within a custom package 
+```
