@@ -21,6 +21,7 @@ $ source devel/setup.bash
 
 ## Running the Demo code
 First, bring up Gazebo, and Baxter
+(just run this, it launches Gazebo for us)
 ```bash
 $  ./baxter.sh sim
 $ roslaunch system_launch everything.launch
@@ -44,5 +45,6 @@ $ ./baxter.sh sim
 Useful commands: 
 ```bash
 $ killall gzserver         when system_launch dies and refuses to restart
+$ ps aux | grep 'ros'      if the error 'port in use' comes up, run this to make sure no leftover ros processes, if there are any 'kill_all_ros.sh' should solve the problem
 $ rosrun hello_baxter hello_baxter.py    run a script within a custom package 
 ```
