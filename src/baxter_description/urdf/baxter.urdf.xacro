@@ -1,0 +1,37 @@
+<?xml version="1.0" ?>
+<robot name="baxter" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <property name="M_PI" value="3.1415926535897931" />
+
+    <!-- Kinect Camera Location (Nominally 0) -->
+    <property name="cal_kinect_x" value="0.0" />
+    <property name="cal_kinect_y" value="0.0" />
+    <property name="cal_kinect_z" value="0.0" />
+    <property name="cal_kinect_roll" value="0.0" />
+    <property name="cal_kinect_pitch" value="0.0" />
+    <property name="cal_kinect_yaw" value="0.0" />
+
+    <xacro:arg name="gazebo" default="false"/>
+    <xacro:arg name="pedestal" default="true"/>
+    <!-- Baxter Base URDF -->
+    <xacro:include filename="$(find baxter_description)/urdf/baxter_base/baxter_base.urdf.xacro">
+        <xacro:arg name="gazebo" value="${gazebo}"/>
+    </xacro:include>
+
+    <!-- Baxter Pedestal -->
+    <xacro:if value="$(arg pedestal)">
+        <xacro:include filename="$(find baxter_description)/urdf/pedestal/pedestal.xacro">
+            <xacro:arg name="gazebo" value="${gazebo}"/>
+        </xacro:include>
+    </xacro:if>
+
+    <!-- Left End Effector -->
+    <xacro:include filename="$(find baxter_description)/urdf/left_end_effector.urdf.xacro" />
+    <!-- Right End Effector -->
+    <xacro:include filename="$(find baxter_description)/urdf/right_end_effector.urdf.xacro" />
+
+    <xacro:include filename="$(find baxter_description)/urdf/sensors/kinect_camera.urdf.xacro" />
+    <xacro:kinect_camera_v0 name="kinect_mount" parent="head">
+        <origin xyz="0.5 0.0 0.5" rpy="0 0 0" />
+    </xacro:kinect_camera_v0>
+</robot>
