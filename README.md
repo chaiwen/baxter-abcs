@@ -41,6 +41,7 @@ Note: For every new terminal you open up, you will have to run the following:
 $ source devel/setup.bash
 $ ./baxter.sh sim
 ```
+Note: in the simulator, all 3 baxter cameras are on at once! Don't worry about turning them on and off. But for real camera, only use images from 1 hand.
 
 Useful commands: 
 ```bash
