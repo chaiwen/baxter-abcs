@@ -1,7 +1,6 @@
 <launch>
 
-<include file="$(find baxter_gazebo)/launch/baxter_world.launch" />
-
+<include file="$(find system_launch)/launch/baxter_world.launch" />
 
 <include file="$(find baxter_sim_hardware)/launch/baxter_sdk_position_rqt.launch" />
 <!--<include file="$(find baxter_sim_hardware)/launch/baxter_sdk_velocity_rqt.launch" />-->
