@@ -14,7 +14,13 @@
 		<uri>model://cafe_table</uri>
 		<name>cafe_table</name>
 		<pose>1 0 0 0 0 0</pose>
+	</include>
+
 	<include>
+		<uri>file:///home/kw2503/baxter-abcs/src/system_launch/world/models/block_A</uri>
+		<name>block_A</name>
+		<pose>0.9 0 0.8 0 0 0</pose>
+	</include>
 
 </world>
 </sdf>

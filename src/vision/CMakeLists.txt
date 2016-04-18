@@ -196,8 +196,8 @@ add_executable(kinect_processor src/kinect_processor)
 target_link_libraries(kinect_processor ${catkin_LIBRARIES})
 add_dependencies(kinect_processor kinect_processor_generate_messages_cpp)
 
-add_executable(tf_listener src/tf_listener.cpp)
-target_link_libraries(tf_listener ${catkin_LIBRARIES})
+#add_executable(tf_listener src/tf_listener.cpp)
+#target_link_libraries(tf_listener ${catkin_LIBRARIES})
 
-add_executable(frame_tf_broadcaster src/frame_tf_broadcaster.cpp)
-target_link_libraries(frame_tf_broadcaster ${catkin_LIBRARIES})
+#add_executable(frame_tf_broadcaster src/frame_tf_broadcaster.cpp)
+#target_link_libraries(frame_tf_broadcaster ${catkin_LIBRARIES})
