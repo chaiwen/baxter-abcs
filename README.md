@@ -16,7 +16,10 @@ $ git clone git@github.com:HumanoidRobotics/baxter_example_code.git
 $ cd baxter_example_code
 $ source /opt/ros/indigo/setup.bash
 $ catkin_make
-$ source devel/setup.bash
+$ source load_settings.sh
+
+Enable the robot (in another terminal window):
+$ rosrun baxter_tools enable_robot.py -e
 ```
 
 ## Running the Demo code
