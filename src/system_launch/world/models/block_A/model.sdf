@@ -1,9 +1,19 @@
 <?xml version="1.0" ?>
 <sdf version="1.4">
     <model name="block_A">
-        <static>true</static>
-        <link name="link">
-            <pose>0 0 0 0 0 0</pose>
+	<link name="link">
+	<inertial>
+            <mass>0.390</mass>
+	    <inertia>
+	        <ixx>7.604166666666669e-07</ixx>
+                <ixy>0</ixy>
+                <ixz>0</ixz>
+                <iyy>7.604166666666669e-07</iyy>
+                <iyz>0</iyz>
+                <izz>7.604166666666669e-07</izz>
+            </inertia>
+	</inertial>
+            <pose>0 0 0 0 0 -1.5708</pose>
             <collision name="collision">
                 <geometry>
                     <mesh>

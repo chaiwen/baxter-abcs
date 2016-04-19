@@ -58,3 +58,9 @@ $ export GAZEBO_MODEL_PATH=/home/your_uni/baxter-abcs/src/system_launch/world/mo
 $ export GAZEBO_RESOURCE_PATH=/home/your_uni/baxter-abcs/src/system_launch/world/models
 ```
 Or add those to your devel/setup.bash since we source that every time anyway. Be sure to change the path to your uni's path.
+
+Ok we have a new thing now instead of sourcing devel/setup.bash just source load_settings.sh instead. it'll take care of the export stuff too!
+
+## Generating Block Models for Gazebo:
+To generate the rest of the block models from block A, go into the models folder [baxter-abcs/src/system_launch/world/models] and run "python generate_block_models.py" You should only need to do this once
+
