@@ -13,11 +13,13 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   image_transport
   cv_bridge
+  roslib
+  #perception_msgs
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-
+find_package(PCL REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -105,8 +107,9 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES vision
+#  CATKIN_DEPENDS perception_msgs
 #  CATKIN_DEPENDS roscpp rospy std_msgs
 #  DEPENDS system_lib
 )
@@ -119,13 +122,17 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
+  include
+  ${PCL_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
 
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 ## Declare a C++ library
-# add_library(vision
-#   src/${PROJECT_NAME}/vision.cpp
-# )
+add_library(vision
+    src/blockABC.cpp
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -133,7 +140,15 @@ include_directories(
 # add_dependencies(vision ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-# add_executable(vision_node src/vision_node.cpp)
+add_executable(kinect_processor src/kinect_processor.cpp src/blockABC.cpp)
+target_link_libraries(kinect_processor
+    #blockABC
+    ${catkin_LIBRARIES}
+)
+add_dependencies(kinect_processor
+    blockABC
+    kinect_processor_generate_messages_cpp
+)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -168,9 +183,8 @@ include_directories(
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/
 #   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
+#  FILES_MATCHING PATTERN "*.h"
+#)
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 # install(FILES
@@ -192,9 +206,9 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-add_executable(kinect_processor src/kinect_processor)
-target_link_libraries(kinect_processor ${catkin_LIBRARIES})
-add_dependencies(kinect_processor kinect_processor_generate_messages_cpp)
+#add_executable(kinect_processor src/kinect_processor.cpp)
+#target_link_libraries(kinect_processor ${catkin_LIBRARIES})
+#add_dependencies(kinect_processor kinect_processor_generate_messages_cpp)
 
 #add_executable(tf_listener src/tf_listener.cpp)
 #target_link_libraries(tf_listener ${catkin_LIBRARIES})

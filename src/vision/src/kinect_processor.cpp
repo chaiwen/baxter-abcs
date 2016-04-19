@@ -12,6 +12,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 
+#include "blockABC.h"
+
 using namespace std;
 
 std::string turtle_name;
@@ -62,6 +64,8 @@ int main(int argc, char **argv)
 
     cout << "kinect????" << endl;
     
+    BlockABC testA('a');
+
     ros::spin();
     cv::destroyWindow("view");
 
