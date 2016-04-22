@@ -22,7 +22,7 @@
 using namespace std;
 using namespace cv;
 
-int kcbCount(0);
+int kcbCount = 0;
 vector<cv::Mat> templates(3); 
 vector<char> corresponding(3); //indices indicate the letter that the template image is
 
@@ -46,31 +46,41 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
     //br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", turtle_name));
 
 		//on the first callback, create the dictionary of template locations
-		//if (kcbCount == 0)
-		//{
-			try
-			{
-				cv::Mat tempImg, grayImg;
-				tempImg = cv_bridge::toCvCopy(msg, "bgr8")->image;
-				//cv::cvtColor(tempImg, grayImg, CV_BGR2GRAY);
-				cv::imshow("view", tempImg);
-				cv::waitKey(30);
-				//writing doesn't seem to work no matter what I try... ugh. It's not too important.
-        //grayImg.convertTo(grayImg, CV_8UC3, 255.0);
-				//cv::imwrite("test.bmp", grayImg);
-			}
-			catch(cv_bridge::Exception& e)
-			{
-				ROS_ERROR("could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
-			}
-		//}
-		//else
-		//{
+		if (kcbCount == 0)
+		{
+			//use point cloud data to find location of blocks and create block objects
+			/* for (int i=0; i<blocks.size(); i++) {
+				//for each block, call bestMatch (make sure the sub-image is larger than the templates!
+				//set the type to the right letter, make sure the 2d positioning is accurate and being used  
+			} 
+			*/
+			cout << "kcbCount = 0" << endl;
+		}
+		else 
+		{
+			cout << "kcbCount: ";
+			cout << kcbCount << endl; 	
+		}
 
-
-
-
-		//}
+		try
+		{
+			cv::Mat tempImg, grayImg;
+			tempImg = cv_bridge::toCvCopy(msg, "bgr8")->image;
+			//cv::cvtColor(tempImg, grayImg, CV_BGR2GRAY);
+			cv::imshow("view", tempImg);
+			cv::waitKey(30);
+			//writing doesn't seem to work no matter what I try... ugh. It's not too important.
+			//grayImg.convertTo(grayImg, CV_8UC3, 255.0);
+			//cv::imwrite("test.bmp", grayImg);
+/*				cout << "kinect callback count: " <<endl;
+			cout << kcbCount << endl; 
+			cout << "i only call you when it's half past five" << endl;
+*/
+		}
+		catch(cv_bridge::Exception& e)
+		{
+			ROS_ERROR("could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
+		}
 
     kcbCount++;
 }
@@ -85,7 +95,7 @@ char bestMatch(cv::Mat cubeSnippet)
 	int matchMethod = CV_TM_CCORR_NORMED;
 	
 	//use each image in the template library as the template to match against cubesnippet
-	/*
+
 	for (int i=0; i<templates.size(); i++){ 
 		cv::Mat result;
 		double minVal, maxVal; 
@@ -93,17 +103,37 @@ char bestMatch(cv::Mat cubeSnippet)
 
 		int result_cols = cubeSnippet.cols - templates[i].cols + 1;
 		int result_rows = cubeSnippet.rows - templates[i].rows + 1; 
+/*
+		cout << "result columns" << endl;
+		cout << result_cols << endl;
+		cout << "result rows" << endl;
+		cout << result_rows << endl; 
+*/
 		result.create(result_rows, result_cols, CV_32FC1);
 		cv::matchTemplate( cubeSnippet, templates[i], result, matchMethod);
-		cv::normalize(result, result, 0, 1, NORM_MINMAX, -1, cv::Mat());		
-		cv::minMaxLoc(result, &minVal, &maxVal, &minLoc, &maxLoc, cv::Mat());
+		//cv::normalize(result, result, 0, 1, NORM_MINMAX, -1, Mat());		
+		cv::minMaxLoc(result, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
+/*
+		cout << "current max value: " ;
+		cout << curMaxVal << endl; 
+		cout << "max value: " ;
+		cout << maxVal << endl;
+		cout << "min value: " ;
+		cout << minVal << endl; 
+*/
+
 		if (maxVal > curMaxVal) {
+			curMaxVal = maxVal;
 			matchLoc = maxLoc;
-			bestMatchIndex = i; 
-		} 
-	} */
-	//return corresponding[bestMatchIndex]; 
-	return '1';
+			bestMatchIndex = i;
+/*
+			cout << "best match index" << endl;
+			cout << bestMatchIndex << endl;
+*/   
+		}
+ 
+	}
+	return corresponding[bestMatchIndex]; 
 }
 
 int main(int argc, char **argv)
@@ -114,17 +144,21 @@ int main(int argc, char **argv)
     a = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/a.png", 1);
 		b = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/b.png", 1);
 		c = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/c.png", 1);
-		testb = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/testb.png", 1);
+		//testb = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/testb.png", 1);
 		templates[0] = a;
 		templates[1] = b;
 		templates[2] = c;
 		corresponding[0] = 'a';
 		corresponding[1] = 'b';
 		corresponding[2] = 'c';
+
+/* works!
 		matchResult = bestMatch(testb); 
 		cout << "The tester match result: " << endl;
 		cout << matchResult << endl; 
+*/
 
+		cout << kcbCount << endl; 
 		/*
 		string alpha ("abcdefghijklmnopqrstuvwxyz");
     string ext(".png"); 
