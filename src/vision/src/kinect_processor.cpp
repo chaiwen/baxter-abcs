@@ -1,4 +1,6 @@
 #include <iostream>
+#include <vector>
+#include <math.h>
 #include <dirent.h>
 #include "ros/ros.h"
 #include <tf/transform_broadcaster.h>
@@ -21,6 +23,7 @@ using namespace std;
 
 int kcbCount(0);
 vector<cv::Mat> templates(3); 
+vector<char> corresponding(3); //indices indicate the letter that the template image is
 
 void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
 {
@@ -68,22 +71,55 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
     kcbCount++;
 }
 
-char bestmatch(cv::Mat cubesnippet)
-{
-	return '0'; 
+//cubesnippet will be the image within the bounds of the cube found by the point cloud data
+char bestMatch(cv::Mat cubeSnippet)
+{ 
+/*
+	double curMaxVal;
+	int bestMatchIndex;
+	Point matchLoc; 
+	int matchMethod = cv::CV_TM_CCORR_NORMED;
+	*/
+	//use each image in the template library as the template to match against cubesnippet
+	/*
+	for (int i=0; i<templates.size(); i++){ 
+		cv::Mat result;
+		double minVal, maxVal; 
+		Point minLoc, maxLoc;
 
+		int result_cols = cubeSnippet.cols - templates[i].cols + 1;
+		int result_rows = cubeSnippet.rows - templates[i].rows + 1; 
+		result.create(result_rows, result_cols, CV_32FC1);
+		cv::matchTemplate( cubeSnippet, templates[i], result, matchMethod);
+		cv::normalize(result, result, 0, 1, NORM_MINMAX, -1, cv::Mat());		
+		cv::minMaxLoc(result, &minVal, &maxVal, &minLoc, &maxLoc, cv::Mat());
+		if (maxVal > curMaxVal) {
+			matchLoc = maxLoc;
+			bestMatchIndex = i; 
+		} 
+	} */
+	//return corresponding[bestMatchIndex]; 
+	return '1';
 }
 
 int main(int argc, char **argv)
 {
 		//load images into template library
-		cv::Mat a, b, c;
-    a = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/a.png", CV_LOAD_IMAGE_ANYDEPTH);
-		b = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/b.png", CV_LOAD_IMAGE_ANYDEPTH);
-		c = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/c.png", CV_LOAD_IMAGE_ANYDEPTH);
+		cv::Mat a, b, c, testb;
+		char matchResult;
+    a = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/a.png", 1);
+		b = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/b.png", 1);
+		c = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/c.png", 1);
+		testb = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/testb.png", 1);
 		templates[0] = a;
 		templates[1] = b;
 		templates[2] = c;
+		corresponding[0] = 'a';
+		corresponding[1] = 'b';
+		corresponding[2] = 'c';
+		matchResult = bestMatch(testb); 
+		cout << "The tester match result: " << endl;
+		cout << matchResult << endl; 
 
 		/*
 		string alpha ("abcdefghijklmnopqrstuvwxyz");
