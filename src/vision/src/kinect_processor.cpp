@@ -20,10 +20,14 @@
 #include "blockABC.h"
 
 using namespace std;
+using namespace cv;
 
 int kcbCount(0);
 vector<cv::Mat> templates(3); 
 vector<char> corresponding(3); //indices indicate the letter that the template image is
+
+
+vector<BlockABC *> blocks;
 
 void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
 {
@@ -74,12 +78,12 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
 //cubesnippet will be the image within the bounds of the cube found by the point cloud data
 char bestMatch(cv::Mat cubeSnippet)
 { 
-/*
+
 	double curMaxVal;
 	int bestMatchIndex;
 	Point matchLoc; 
-	int matchMethod = cv::CV_TM_CCORR_NORMED;
-	*/
+	int matchMethod = CV_TM_CCORR_NORMED;
+	
 	//use each image in the template library as the template to match against cubesnippet
 	/*
 	for (int i=0; i<templates.size(); i++){ 
@@ -174,4 +178,25 @@ int main(int argc, char **argv)
     cv::destroyWindow("view");
 
     return 0;
+}
+
+/* deletes all blocks to reset */
+// deleteBlocks();
+void deleteBlocks() {
+    cout << "deleting blocks vector..." << endl;
+    if (blocks.size() == 0)
+        return;
+
+    while (blocks.size() > 0) {
+        BlockABC *_block = blocks.back();
+        delete _block;
+        blocks.pop_back();
+    }
+}
+
+/* adds a block to vector of blocks */
+// eg: addBlock('a');
+void addBlock(char type) {
+    BlockABC *block = new BlockABC(type);
+    blocks.push_back(block);
 }
