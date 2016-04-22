@@ -6,9 +6,10 @@ from std_msgs.msg import String
 def send_command():
     pub = rospy.Publisher('speech_command', String, queue_size=10)
     rospy.init_node('speech_command', anonymous=True)
-    hello_str = "Hello"
-    rospy.loginfo(hello_str)
-    pub.publish(hello_str)
+    block_letters = "A"
+    #block_letters = "CAB"
+    rospy.loginfo(block_letters)
+    pub.publish(block_letters)
 
 if __name__ == '__main__':
     try:
