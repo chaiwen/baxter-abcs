@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   image_transport
   cv_bridge
   roslib
+	pcl_conversions
+	pcl_ros
   #perception_msgs
 )
 
@@ -144,6 +146,7 @@ add_executable(kinect_processor src/kinect_processor.cpp src/blockABC.cpp)
 target_link_libraries(kinect_processor
     #blockABC
     ${catkin_LIBRARIES}
+		${PCL_LIBRARIES}
 )
 add_dependencies(kinect_processor
     blockABC
