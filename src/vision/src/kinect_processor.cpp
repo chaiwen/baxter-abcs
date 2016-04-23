@@ -9,7 +9,11 @@
 
 #include "std_msgs/String.h"
 
-#include <sensor_msgs/PointCloud.h> // for the kinect point cloud
+#include <sensor_msgs/PointCloud2.h> // for the kinect point cloud
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/filters/voxel_grid.h>
 
 #include <image_transport/image_transport.h>
 #include <opencv2/core/core.hpp>
@@ -28,6 +32,33 @@ vector<char> corresponding(3); //indices indicate the letter that the template i
 
 
 vector<BlockABC *> blocks;
+
+void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
+{
+
+    cout << "pcl cb" << endl;
+
+    // Container for original & filtered data
+    pcl::PCLPointCloud2 *cloud = new pcl::PCLPointCloud2;
+    pcl::PCLPointCloud2ConstPtr cloudPtr(cloud);
+    pcl::PCLPointCloud2 cloud_filtered;
+
+    // Convert to PCL data type
+    pcl_conversions::toPCL(*cloud_msg, *cloud);
+
+    // Perform the filtering
+    pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
+    sor.setInputCloud(cloudPtr);
+    sor.setLeafSize(0.1, 0.1, 0.1);
+    sor.filter(cloud_filtered);
+
+    // Convert to ROS data type
+    sensor_msgs::PointCloud2 output;
+    pcl_conversions::fromPCL(cloud_filtered, output);
+
+    //output is the filtered data?
+
+}
 
 void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
 {
@@ -67,8 +98,11 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
 			cv::Mat tempImg, grayImg;
 			tempImg = cv_bridge::toCvCopy(msg, "bgr8")->image;
 			//cv::cvtColor(tempImg, grayImg, CV_BGR2GRAY);
-			cv::imshow("view", tempImg);
-			cv::waitKey(30);
+			//cv::imshow("view", tempImg);
+
+            cv::imshow("view", cv_bridge::toCvCopy(msg, "bgr8")->image);
+
+			//cv::waitKey(30);
 			//writing doesn't seem to work no matter what I try... ugh. It's not too important.
 			//grayImg.convertTo(grayImg, CV_8UC3, 255.0);
 			//cv::imwrite("test.bmp", grayImg);
@@ -203,6 +237,8 @@ int main(int argc, char **argv)
     image_transport::Subscriber sub = it.subscribe("/kinect_mount/kinect_mount/rgb/image_raw", 1, kinectCallback);
     // TODO: find correct kinect topic
     //ros::Subscriber sub = node.subscribe(turtle_name+"/pose", 10, &kinectCallback);
+
+    ros::Subscriber sub2 = node.subscribe<sensor_msgs::PointCloud2>("/kinect_mount/kinect_mount/rgb/points", 1, ptCloudCallback);
 
     cout << "kinect????" << endl;
     
