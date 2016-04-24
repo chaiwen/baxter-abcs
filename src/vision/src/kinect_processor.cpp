@@ -46,8 +46,6 @@ int pclCount = 0;
 void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
 
-    //cout << "pcl cb" << endl;
-
     // Container for original & filtered data
     pcl::PCLPointCloud2 *cloud = new pcl::PCLPointCloud2;
     pcl::PCLPointCloud2ConstPtr cloudPtr(cloud);
@@ -57,39 +55,37 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     pcl_conversions::toPCL(*cloud_msg, *cloud);
 
     // Downsample the points
-    /*pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
+    pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
     sor.setInputCloud(cloudPtr);
     sor.setLeafSize(0.01, 0.01, 0.01);
-    sor.filter(cloud_filtered);*/
-
-    //pcl::PCLPointCloud2ConstPtr filterPtr(&cloud_filtered);
+    sor.filter(cloud_filtered);
 
     // convert to PointCloud old type to use passthrough filter
     pcl::PointCloud<pcl::PointXYZ> *cloudv1 = new pcl::PointCloud<pcl::PointXYZ>;
     pcl::PointCloud<pcl::PointXYZ>::Ptr old_cloud(cloudv1);
     pcl::PointCloud<pcl::PointXYZ>::Ptr old_filtered(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::fromPCLPointCloud2(*cloud, *cloudv1);
+    pcl::fromPCLPointCloud2(cloud_filtered, *cloudv1);
 
     //cout << old_cloud->points[0].x << " " << old_cloud->points[0].y << " " << old_cloud->points[0].z << endl;
     
-    pcl::PassThrough<pcl::PointXYZ> pass; //TODO maybe there's a passthrough for pointCloud2?
+    pcl::PassThrough<pcl::PointXYZ> pass; //TODO maybe there's a passthrough filter for pointCloud2?
     pass.setInputCloud(old_cloud);
     pass.setFilterFieldName("z");
     pass.setFilterLimits(1.0, 1.17);
     pass.filter(*old_filtered);
 
     // convert back to PointCloud2...
-    pcl::PCLPointCloud2 new_cloud;// = new pcl::PCLPointCloud2;
+    pcl::PCLPointCloud2 new_cloud;
     pcl::toPCLPointCloud2(*old_filtered, new_cloud);
     //pcl::PCLPointCloud2 = ROS message type replacing sensors_msgs::PointCloud2
+
     // Convert to ROS data type
     sensor_msgs::PointCloud2 output;
     pcl_conversions::fromPCL(new_cloud, output);//cloud_filtered, output);
 
-    // publish the filtered data
+    // publish the filtered data, should only be cubes in space now without table!
     pub.publish(output);
 
-    
 }
 
 void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
