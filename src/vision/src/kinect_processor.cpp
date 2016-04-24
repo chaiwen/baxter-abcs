@@ -13,8 +13,15 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/conversions.h>
+#include <pcl/PCLPointCloud2.h>
 #include <pcl/filters/voxel_grid.h>
-#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
 
 #include <image_transport/image_transport.h>
 #include <opencv2/core/core.hpp>
@@ -39,7 +46,7 @@ int pclCount = 0;
 void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
 
-    cout << "pcl cb" << endl;
+    //cout << "pcl cb" << endl;
 
     // Container for original & filtered data
     pcl::PCLPointCloud2 *cloud = new pcl::PCLPointCloud2;
@@ -49,15 +56,35 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     // Convert to PCL data type
     pcl_conversions::toPCL(*cloud_msg, *cloud);
 
-    // Perform the filtering
-    pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
+    // Downsample the points
+    /*pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
     sor.setInputCloud(cloudPtr);
-    sor.setLeafSize(0.1, 0.1, 0.1);
-    sor.filter(cloud_filtered);
+    sor.setLeafSize(0.01, 0.01, 0.01);
+    sor.filter(cloud_filtered);*/
 
+    //pcl::PCLPointCloud2ConstPtr filterPtr(&cloud_filtered);
+
+    // convert to PointCloud old type to use passthrough filter
+    pcl::PointCloud<pcl::PointXYZ> *cloudv1 = new pcl::PointCloud<pcl::PointXYZ>;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr old_cloud(cloudv1);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr old_filtered(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::fromPCLPointCloud2(*cloud, *cloudv1);
+
+    //cout << old_cloud->points[0].x << " " << old_cloud->points[0].y << " " << old_cloud->points[0].z << endl;
+    
+    pcl::PassThrough<pcl::PointXYZ> pass; //TODO maybe there's a passthrough for pointCloud2?
+    pass.setInputCloud(old_cloud);
+    pass.setFilterFieldName("z");
+    pass.setFilterLimits(1.0, 1.17);
+    pass.filter(*old_filtered);
+
+    // convert back to PointCloud2...
+    pcl::PCLPointCloud2 new_cloud;// = new pcl::PCLPointCloud2;
+    pcl::toPCLPointCloud2(*old_filtered, new_cloud);
+    //pcl::PCLPointCloud2 = ROS message type replacing sensors_msgs::PointCloud2
     // Convert to ROS data type
     sensor_msgs::PointCloud2 output;
-    pcl_conversions::fromPCL(cloud_filtered, output);
+    pcl_conversions::fromPCL(new_cloud, output);//cloud_filtered, output);
 
     // publish the filtered data
     pub.publish(output);
@@ -94,8 +121,8 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
     }
     else 
     {
-        cout << "kcbCount: ";
-        cout << kcbCount << endl; 	
+        //cout << "kcbCount: ";
+        //cout << kcbCount << endl; 	
     }
 
     try
@@ -236,12 +263,10 @@ int main(int argc, char **argv)
 
     ros::NodeHandle node;  // access to ROS system
 
-    cv::namedWindow("view");
-    cv::startWindowThread();
+    //cv::namedWindow("view");
+    //cv::startWindowThread();
     image_transport::ImageTransport it(node);
     image_transport::Subscriber sub = it.subscribe("/kinect_mount/kinect_mount/rgb/image_raw", 1, kinectCallback);
-    // TODO: find correct kinect topic
-    //ros::Subscriber sub = node.subscribe(turtle_name+"/pose", 10, &kinectCallback);
 
     ros::Subscriber sub2 = node.subscribe<sensor_msgs::PointCloud2>("/kinect_mount/kinect_mount/rgb/points", 1, ptCloudCallback);
 
@@ -253,7 +278,7 @@ int main(int argc, char **argv)
     BlockABC testA('a');
 
     ros::spin();
-    cv::destroyWindow("view");
+    //cv::destroyWindow("view");
 
     return 0;
 }
