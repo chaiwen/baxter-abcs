@@ -31,6 +31,7 @@
 #include <cv_bridge/cv_bridge.h>
 
 #include "blockABC.h"
+#include "vision/GetXYZFromABC.h"
 
 using namespace std;
 using namespace cv;
@@ -43,7 +44,6 @@ vector<char> corresponding(3); //indices indicate the letter that the template i
 vector<BlockABC *> blocks;
 
 ros::Publisher pub;
-ros::Publisher toVisionService;
 int pclCount = 0;
 void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
@@ -200,6 +200,18 @@ char bestMatch(cv::Mat cubeSnippet)
     return corresponding[bestMatchIndex]; 
 }
 
+bool getXYZ_ABC(vision::GetXYZFromABC::Request &req,
+            vision::GetXYZFromABC::Response &res)
+{
+    res.x = 0.0;
+    res.y = 1.0;
+    res.z = 1.0;
+
+    ROS_INFO("request: %s", req.letter.c_str());
+    ROS_INFO("sending back %lf %lf %lf", (double)res.x, (double)res.y, (double)res.z);
+
+    return true;
+}
 int main(int argc, char **argv)
 {
     //load images into template library
@@ -254,7 +266,7 @@ int main(int argc, char **argv)
     }
     */
     //ros::init(argc, argv, "my_tf_broadcaster");
-    ros::init(argc, argv, "kinect_listener");
+    ros::init(argc, argv, "kinect_listener"); //initialize the node
 
     //if (argc != 2){ROS_ERROR("need turtle name as argument"); return -1;};
     //turtle_name = argv[1];
@@ -273,13 +285,16 @@ int main(int argc, char **argv)
     pub = node.advertise<sensor_msgs::PointCloud2>("/kinect_mount/kinect_mount/kinect_object_cloud_filtered", 100);
     cout << "kinect????" << endl;
 		//testing talking to vision_service 
-		toVisionService = node.advertise<std_msgs::String>("service_test_topic",1);
-		std_msgs::String str;
-		str.data = "testing the vision service!";
-		toVisionService.publish(str); 
+		//toVisionService = node.advertise<std_msgs::String>("service_test_topic",1);
+	//	std_msgs::String str;
+	//	str.data = "testing the vision service!";
+	//	toVisionService.publish(str); 
 
     BlockABC testA('a');
 
+
+    // get XYZ service
+    ros::ServiceServer service = node.advertiseService("get_xyz_from_abc", getXYZ_ABC);
     ros::spin();
     //cv::destroyWindow("view");
 

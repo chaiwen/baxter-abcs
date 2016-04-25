@@ -63,7 +63,7 @@ find_package(PCL REQUIRED)
 ## Generate services in the 'srv' folder
  add_service_files(
    FILES
-   visionService.srv
+   GetXYZFromABC.srv
  )
 
 ## Generate actions in the 'action' folder
@@ -113,6 +113,7 @@ catkin_package(
 #  LIBRARIES vision
 #  CATKIN_DEPENDS perception_msgs
 #  CATKIN_DEPENDS roscpp rospy std_msgs
+    CATKIN_DEPENDS message_runtime
 #  DEPENDS system_lib
 )
 
@@ -134,7 +135,6 @@ add_definitions(${PCL_DEFINITIONS})
 ## Declare a C++ library
 add_library(vision
     src/blockABC.cpp
-		src/vision_service.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -143,15 +143,15 @@ add_library(vision
 # add_dependencies(vision ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(kinect_processor src/kinect_processor.cpp src/blockABC.cpp src/vision_service.cpp)
+add_executable(kinect_processor src/kinect_processor.cpp src/blockABC.cpp)
 target_link_libraries(kinect_processor
     #blockABC
     ${catkin_LIBRARIES}
-		${PCL_LIBRARIES}
+	${PCL_LIBRARIES}
 )
 add_dependencies(kinect_processor
     blockABC
-		vision_service
+    vision_gencpp
     kinect_processor_generate_messages_cpp
 )
 
