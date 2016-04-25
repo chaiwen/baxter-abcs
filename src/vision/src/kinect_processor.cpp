@@ -3,6 +3,7 @@
 #include <math.h>
 #include <dirent.h>
 #include "ros/ros.h"
+#include "ros/package.h"
 #include <tf/transform_broadcaster.h>
 
 #include "turtlesim/Pose.h"
@@ -42,6 +43,7 @@ vector<char> corresponding(3); //indices indicate the letter that the template i
 vector<BlockABC *> blocks;
 
 ros::Publisher pub;
+ros::Publisher toVisionService;
 int pclCount = 0;
 void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
@@ -270,6 +272,11 @@ int main(int argc, char **argv)
     // publisher for modified cloud
     pub = node.advertise<sensor_msgs::PointCloud2>("/kinect_mount/kinect_mount/kinect_object_cloud_filtered", 100);
     cout << "kinect????" << endl;
+		//testing talking to vision_service 
+		toVisionService = node.advertise<std_msgs::String>("service_test_topic",1);
+		std_msgs::String str;
+		str.data = "testing the vision service!";
+		toVisionService.publish(str); 
 
     BlockABC testA('a');
 
