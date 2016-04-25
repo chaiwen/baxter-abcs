@@ -1,7 +1,9 @@
 #!/usr/bin/env python
+import sys
 import rospy
 import baxter_interface
 
+from vision.srv import *
 from std_msgs.msg import String
 
 rospy.init_node('control', anonymous=False)
@@ -9,6 +11,19 @@ rospy.init_node('control', anonymous=False)
 limb = baxter_interface.Limb('right')
 
 angles = {}
+
+
+
+# client to get XYZ from letter of block alphabet
+def get_xyz_client(abc):
+    rospy.wait_for_service('get_xyz_from_abc')
+    try:
+        get_xyz_from_abc = rospy.ServiceProxy('get_xyz_from_abc', GetXYZFromABC)
+        resp1 = get_xyz_from_abc(abc)
+        return resp1.x, resp1.y, resp1.z
+    except rospy.ServiceException, e:
+        print "Service call failed: %s"%e
+
 
 def callback(data):
     rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
@@ -51,4 +66,10 @@ def control():
     rospy.spin()
 
 if __name__ == '__main__':
-    control()
+    #control() # this will subscribe and wave robot arm?
+    abc = "BLOCK A!"
+    print "Requesting position of %s"%(abc)
+
+    x, y, z = get_xyz_client(abc)
+
+    print "%s = %d %d %d"%(abc, x, y, z)
