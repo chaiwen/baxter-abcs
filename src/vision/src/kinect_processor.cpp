@@ -18,11 +18,15 @@
 #include <pcl/PCLPointCloud2.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/passthrough.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/kdtree/kdtree.h>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_clusters.h>
 
 #include <image_transport/image_transport.h>
 #include <opencv2/core/core.hpp>
@@ -56,7 +60,7 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     // Convert to PCL data type
     pcl_conversions::toPCL(*cloud_msg, *cloud);
 
-    // Downsample the points
+    // Downsample the points using leaf size of 1cm
     pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
     sor.setInputCloud(cloudPtr);
     sor.setLeafSize(0.01, 0.01, 0.01);
@@ -75,6 +79,42 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     pass.setFilterFieldName("z");
     pass.setFilterLimits(1.0, 1.17);
     pass.filter(*old_filtered);
+
+    // euclidean cluster extraction
+    // create KdTree object for search method of extraction
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    tree->setInputCloud(old_filtered);
+
+    std::vector<pcl::PointIndices> cluster_indices;
+    pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+    ec.setClusterTolerance(0.02); // 2cm
+    ec.setMinClusterSize(10);
+    ec.setMaxClusterSize(25000);
+    ec.setSearchMethod(tree);
+    ec.setInputCloud(old_filtered);
+    ec.extract(cluster_indices);
+
+
+    pcl::PCDWriter writer;
+    int j = 0;
+    for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
+    {
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+        for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit)
+            cloud_cluster->points.push_back(old_filtered->points[*pit]);
+        cloud_cluster->width = cloud_cluster->points.size();
+        cloud_cluster->height = 1;
+        cloud_cluster->is_dense = true;
+
+        std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size() << " data points." << std::endl;
+        std::stringstream ss;
+        ss << "cloud_cluster_" << j << ".pcd";
+        writer.write<pcl::PointXYZ> (ss.str(), *cloud_cluster, false);
+
+        j++;
+
+    }
+//    cout << "there were " << j << " clusters found" << endl;
 
     // convert back to PointCloud2...
     pcl::PCLPointCloud2 new_cloud;
