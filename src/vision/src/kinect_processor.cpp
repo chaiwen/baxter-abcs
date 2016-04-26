@@ -106,7 +106,7 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         cloud_cluster->height = 1;
         cloud_cluster->is_dense = true;
 
-        std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size() << " data points." << std::endl;
+        //std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size() << " data points." << std::endl;
         std::stringstream ss;
         ss << "cloud_cluster_" << j << ".pcd";
         writer.write<pcl::PointXYZ> (ss.str(), *cloud_cluster, false);
@@ -168,7 +168,7 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
         cv::Mat tempImg, grayImg;
         tempImg = cv_bridge::toCvCopy(msg, "bgr8")->image;
         //cv::cvtColor(tempImg, grayImg, CV_BGR2GRAY);
-        //cv::imshow("view", tempImg);
+        cv::imshow("view", tempImg);
 
 //        cv::imshow("view", cv_bridge::toCvCopy(msg, "bgr8")->image);
 
@@ -313,25 +313,20 @@ int main(int argc, char **argv)
 
     ros::NodeHandle node;  // access to ROS system
 
-    //cv::namedWindow("view");
-    //cv::startWindowThread();
+    cv::namedWindow("view");
+    cv::startWindowThread();
     image_transport::ImageTransport it(node);
     image_transport::Subscriber sub = it.subscribe("/kinect_mount/kinect_mount/rgb/image_raw", 1, kinectCallback);
 
+    
     ros::Subscriber sub2 = node.subscribe<sensor_msgs::PointCloud2>("/kinect_mount/kinect_mount/rgb/points", 1, ptCloudCallback);
 
 
     // publisher for modified cloud
     pub = node.advertise<sensor_msgs::PointCloud2>("/kinect_mount/kinect_mount/kinect_object_cloud_filtered", 100);
     cout << "kinect????" << endl;
-		//testing talking to vision_service 
-		//toVisionService = node.advertise<std_msgs::String>("service_test_topic",1);
-	//	std_msgs::String str;
-	//	str.data = "testing the vision service!";
-	//	toVisionService.publish(str); 
 
     BlockABC testA('a');
-
 
     // get XYZ service
     ros::ServiceServer service = node.advertiseService("get_xyz_from_abc", getXYZ_ABC);
