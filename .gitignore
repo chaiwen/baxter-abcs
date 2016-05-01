@@ -4,3 +4,5 @@ devel
 *~
 src/system_launch/world/models/block*
 !src/system_launch/world/models/block_A*
+*.swp
+*.pcd

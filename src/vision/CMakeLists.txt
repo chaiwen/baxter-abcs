@@ -14,6 +14,9 @@ find_package(catkin REQUIRED COMPONENTS
   image_transport
   cv_bridge
   roslib
+	pcl_conversions
+	pcl_ros
+	message_generation
   #perception_msgs
 )
 
@@ -58,11 +61,10 @@ find_package(PCL REQUIRED)
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+ add_service_files(
+   FILES
+   GetXYZFromABC.srv
+ )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -111,6 +113,7 @@ catkin_package(
 #  LIBRARIES vision
 #  CATKIN_DEPENDS perception_msgs
 #  CATKIN_DEPENDS roscpp rospy std_msgs
+    CATKIN_DEPENDS message_runtime
 #  DEPENDS system_lib
 )
 
@@ -144,9 +147,11 @@ add_executable(kinect_processor src/kinect_processor.cpp src/blockABC.cpp)
 target_link_libraries(kinect_processor
     #blockABC
     ${catkin_LIBRARIES}
+	${PCL_LIBRARIES}
 )
 add_dependencies(kinect_processor
     blockABC
+    vision_gencpp
     kinect_processor_generate_messages_cpp
 )
 
