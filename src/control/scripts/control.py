@@ -56,7 +56,11 @@ def get_letter_position(letter):
 def place_block(block_tuple):
 		# (x, y, z) 
 		#
-		print "yea baxter is moving the block with initial location: x=" + str(block_tuple[0]) + " y=" + str(block_tuple[1]) + " z=" + str(block_tuple[2])
+    move_pub = rospy.Publisher("move_arm", String, queue_size=10)
+    rospy.loginfo(str(block_tuple) + "\n")
+    move_pub.publish(str(block_tuple))
+    
+    print "yea baxter is moving the block with initial location: x=" + str(block_tuple[0]) + " y=" + str(block_tuple[1]) + " z=" + str(block_tuple[2])
 
 def wave():
     # store first and second wave position
