@@ -70,37 +70,10 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     // Convert to PCL data type
     pcl_conversions::toPCL(*cloud_msg, *cloud);
     // cloud: 307200 width x 1 height
-    /*std::vector<unsigned char> data = cloud->data;
-    cout << data.size() << endl;
-    for (int p = 0; p < data.size(); p++) {
-
-    }*/
     pcl::PointCloud<pcl::PointXYZ> original_cloud;
     pcl::fromROSMsg(*cloud_msg, original_cloud);
     // loop thru 307200 points:
-    float minX = std::numeric_limits<float>::max();
-    float maxX = std::numeric_limits<float>::min();
-    float minY = minX;
-    float maxY = maxX;
-
-    int test = 0;
-    for (pcl::PointCloud<pcl::PointXYZ>::const_iterator it = original_cloud.begin();
-            it != original_cloud.end(); ++it) {
-
-        pcl::PointXYZ pt = *it;
-        if (pt.x < minX) minX = pt.x;
-        if (pt.x > maxX) maxX = pt.x;
-        if (pt.y < minY) minY = pt.y;
-        if (pt.y > maxY) maxY = pt.y;
-
-        if (test % 640 == 1) {
-            //cout << pt.x << endl;
-        }
-        test++;
-    }
-
-    //cout << minX << ", " << maxX << ", " << minY << ", " << maxY << endl;
-
+  
     // Downsample the points using leaf size of 1cm
     pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
     sor.setInputCloud(cloudPtr);
@@ -114,16 +87,7 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     pcl::fromPCLPointCloud2(cloud_filtered, *cloudv1);
 
     //cout << old_cloud->points[0].x << " " << old_cloud->points[0].y << " " << old_cloud->points[0].z << endl;
-    
-    /*pcl::PCLPointCloud2 new_filtered;
-    pcl::PCLPointCloud2ConstPtr newCloudPtr(&cloud_filtered);
-    pcl::PassThrough<pcl::PCLPointCloud2> pass1;
-    pass1.setInputCloud(newCloudPtr);
-    pass1.setFilterFieldName("z");
-    pass1.setFilterLimits(1.0, 1.17);
-    pass1.filter(new_filtered);
-*/
-
+   
     pcl::PassThrough<pcl::PointXYZ> pass; //TODO maybe there's a passthrough filter for pointCloud2?
     pass.setInputCloud(old_cloud);
     pass.setFilterFieldName("z");
@@ -203,11 +167,8 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         for (int ct = 0; ct < 640; ct++) {
             pcl::PointXYZ pt = original_cloud[ct];
 
-            if (minCX < pt.x && pxMin == 0) {
+            if (sumX < pt.x) {
                 pxMin = px;
-            }
-            if (pt.x > maxCX && pxMax == 0) {
-                pxMax = px;
                 break;
             }
             px++;
@@ -218,11 +179,8 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         for (int ct = 0; ct < 307200; ct += 640) {
             pcl::PointXYZ pt = original_cloud[ct];
 
-            if (minCY < pt.y && pyMin == 0) {
+            if (sumY < pt.y) {
                 pyMin = px;
-            }
-            if (pt.y > maxCY && pyMax == 0) {
-                pyMax = px;
                 break;
             }
             px++;
@@ -239,35 +197,10 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
             px++;
         }*/
 
-/*
-
-
-
-        float cwidth = maxCX - minCX;
-        float cheight = maxCY - minCY;
-        //cout << "dim: " << cwidth << ", " << cheight << endl;
-        
-
-        // get hacky percentage of window to find corresponding window in 2d rgb image
-        float posXmin, posXmax, posYmin, posYmax;
-        posXmin = (minCX - minX) / (maxX - minX);
-        posXmax = (maxCX - minX) / (maxX - minX);
-        posYmin = (minCY - minY) / (maxY - minY);
-        posYmax = (maxCY - minY) / (maxY - minY);
-        //cout << "2d bounds: " << posXmin << ", " << posXmax << ", " << posYmin << ", " << posYmax << endl;
-        
-        
-        // hard coded for now
-        float rx = posXmin * 640 - 10;
-        float ry = posYmin * 480 - 10;
-        float rw = posXmax * 640 - rx + 5;
-        float rh = posYmax * 480 - ry + 5;
-        //cout << "pixels: " << rx << ", " << ry << ", " << rw << ", " << rh << endl;
-        */
-        float rx = pxMin - 80;
-        float ry = pyMin - 30;
-        float rw = pxMax - pxMin + 150;
-        float rh = pyMax - pyMin + 60;
+        float rx = pxMin - 50;
+        float ry = pyMin - 50;
+        float rw = 100;
+        float rh = 100;
         cv::Rect *rect = new cv::Rect(rx, ry, rw, rh);
         blockBounds.push_back(rect);
 
@@ -362,11 +295,12 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
         for (int b = 0; b < blockBounds.size(); b++) {
             cv::Rect *rect = blockBounds[b];
             cv::Mat letterImg;
-            if (b == 0) {
+            cout << "----> imshow " << b << ": " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
+            //if (b == 2) {
                 letterImg = rgbImg(*rect);
-                cout << "----> imshow; " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
                 cv::imshow("view", letterImg);
-            }
+            //}
+                sleep(1);
         }
         //cv::imshow("view", rgbImg);
         blockLock.unlock();
