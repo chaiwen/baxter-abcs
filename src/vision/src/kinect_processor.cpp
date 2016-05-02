@@ -44,6 +44,10 @@ int kcbCount = 0;
 vector<cv::Mat> templates(3); 
 vector<char> corresponding(3); //indices indicate the letter that the template image is
 
+Mutex blockLock;
+vector<cv::Rect *> blockBounds;
+Mutex matLock;
+cv::Mat rgbImg;
 
 vector<BlockABC *> blocks;
 
@@ -57,16 +61,45 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     pcl::PCLPointCloud2ConstPtr cloudPtr(cloud);
     pcl::PCLPointCloud2 cloud_filtered;
 
-    cout << "-------> " << cloud_msg->point_step << ", " << cloud_msg->row_step << endl;
-    
-    // cloud_msg->point_step = 32 = length of a point in bytes = 4x8byte float? RGBD?
+    // cloud_msg->point_step = 32 = length of a point in bytes = 4x8byte float? XYZRGB
     // cloud_msg->row_step = 9830400 = 32 x 640 x 480
     // kinect point cloud data is one array (cloud_msg->height = 1) of 307200 (cloud_msg->width = 640 x 480)
     // cloud_msg->data = array of uint8 (size = row_step * height)
-
+    //cout << "------->" << (float)cloud_msg->data[0] << endl;
 
     // Convert to PCL data type
     pcl_conversions::toPCL(*cloud_msg, *cloud);
+    // cloud: 307200 width x 1 height
+    /*std::vector<unsigned char> data = cloud->data;
+    cout << data.size() << endl;
+    for (int p = 0; p < data.size(); p++) {
+
+    }*/
+    pcl::PointCloud<pcl::PointXYZ> original_cloud;
+    pcl::fromROSMsg(*cloud_msg, original_cloud);
+    // loop thru 307200 points:
+    float minX = std::numeric_limits<float>::max();
+    float maxX = std::numeric_limits<float>::min();
+    float minY = minX;
+    float maxY = maxX;
+
+    int test = 0;
+    for (pcl::PointCloud<pcl::PointXYZ>::const_iterator it = original_cloud.begin();
+            it != original_cloud.end(); ++it) {
+
+        pcl::PointXYZ pt = *it;
+        if (pt.x < minX) minX = pt.x;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+        if (pt.y > maxY) maxY = pt.y;
+
+        if (test % 640 == 1) {
+            //cout << pt.x << endl;
+        }
+        test++;
+    }
+
+    //cout << minX << ", " << maxX << ", " << minY << ", " << maxY << endl;
 
     // Downsample the points using leaf size of 1cm
     pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
@@ -82,6 +115,15 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 
     //cout << old_cloud->points[0].x << " " << old_cloud->points[0].y << " " << old_cloud->points[0].z << endl;
     
+    /*pcl::PCLPointCloud2 new_filtered;
+    pcl::PCLPointCloud2ConstPtr newCloudPtr(&cloud_filtered);
+    pcl::PassThrough<pcl::PCLPointCloud2> pass1;
+    pass1.setInputCloud(newCloudPtr);
+    pass1.setFilterFieldName("z");
+    pass1.setFilterLimits(1.0, 1.17);
+    pass1.filter(new_filtered);
+*/
+
     pcl::PassThrough<pcl::PointXYZ> pass; //TODO maybe there's a passthrough filter for pointCloud2?
     pass.setInputCloud(old_cloud);
     pass.setFilterFieldName("z");
@@ -102,42 +144,135 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     ec.setInputCloud(old_filtered);
     ec.extract(cluster_indices);
 
-    cout << "getting each point of each cluster" << endl;
+     
+    blockLock.lock();
+    for (int b = 0; b < blockBounds.size(); b++) {
+        delete blockBounds[b];
+    }
+    blockBounds.clear();
+    
+    //cout << "getting each point of each cluster" << endl;
     // old_filtered size will be the total number of cluster points. cluster indices index into this
     // to get the points for each cluster
     int j = 0;
     for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
     {
         // for each cluster:
-
         //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+        //cout << "cloud " << j << ": " << old_filtered->points.size() << endl; // total number of points overall
+        float sumX = 0.0, sumY = 0.0, sumZ = 0.0;
+        
+        float minCX = std::numeric_limits<float>::max();
+        float maxCX = std::numeric_limits<float>::min();
+        float minCY = minCX;
+        float maxCY = maxCX;
 
-        float minX, maxX, minY, maxY;
-        int t = 1;
-        //cout << "cloud " << j << ": " << old_filtered->points.size() << endl;
+        float numP = 0;
         for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit) {
-
-            
-            cout << "point" << t << ": " << old_filtered->points[*pit] << endl;
+            //cout << "point" << t << ": " << old_filtered->points[*pit] << endl;
 
             float x = old_filtered->points[*pit].x;
             float y = old_filtered->points[*pit].y;
             float z = old_filtered->points[*pit].z;
 
-            cout << x << "," << y << "," << z << endl;
+            sumX += x;
+            sumY += y;
+            sumZ += z;
 
-            t++;
-            //cloud_cluster->points.push_back(old_filtered->points[*pit]);
+            if (x < minCX) minCX = x;
+            if (x > maxCX) maxCX = x;
+            if (y < minCY) minCY = y;
+            if (y > maxCY) maxCY = y;
+
+            numP++;
+            //cout << x << "," << y << "," << z << endl;
         }
-        //cloud_cluster->width = cloud_cluster->points.size();
-        //cloud_cluster->height = 1;
-        //cloud_cluster->is_dense = true;
-
-        //std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size() << " data points." << std::endl;
+        sumX = sumX / numP;
+        sumY = sumY / numP;
+        sumZ = sumZ / numP;
 
         j++;
+        //cout << "cluster " << j << " center: " << sumX << ", " << sumY << ", " << sumZ << endl;
+        //cout << "bounds: " << minCX << ", " << maxCX << ", " << minCY << ", " << maxCY << endl;
+
+        
+        
+        int px = 0;
+        int pxMin = 0;
+        int pxMax = 0;
+        for (int ct = 0; ct < 640; ct++) {
+            pcl::PointXYZ pt = original_cloud[ct];
+
+            if (minCX < pt.x && pxMin == 0) {
+                pxMin = px;
+            }
+            if (pt.x > maxCX && pxMax == 0) {
+                pxMax = px;
+                break;
+            }
+            px++;
+        }
+        px = 0;
+        int pyMin = 0;
+        int pyMax = 0;
+        for (int ct = 0; ct < 307200; ct += 640) {
+            pcl::PointXYZ pt = original_cloud[ct];
+
+            if (minCY < pt.y && pyMin == 0) {
+                pyMin = px;
+            }
+            if (pt.y > maxCY && pyMax == 0) {
+                pyMax = px;
+                break;
+            }
+            px++;
+        }
+        //cout << "pixel bounds ----> " << pxMin << ", " << pxMax << ", " << pyMin << ", " << pyMax << endl;
+        /*for (pcl::PointCloud<pcl::PointXYZ>::const_iterator ct = original_cloud.begin();
+            ct != original_cloud.end(); ++ct) {
+
+            pcl::PointXYZ pt = *ct;
+
+            if (test % 640 == 1) {
+                cout << pt.x << endl;
+            }
+            px++;
+        }*/
+
+/*
+
+
+
+        float cwidth = maxCX - minCX;
+        float cheight = maxCY - minCY;
+        //cout << "dim: " << cwidth << ", " << cheight << endl;
+        
+
+        // get hacky percentage of window to find corresponding window in 2d rgb image
+        float posXmin, posXmax, posYmin, posYmax;
+        posXmin = (minCX - minX) / (maxX - minX);
+        posXmax = (maxCX - minX) / (maxX - minX);
+        posYmin = (minCY - minY) / (maxY - minY);
+        posYmax = (maxCY - minY) / (maxY - minY);
+        //cout << "2d bounds: " << posXmin << ", " << posXmax << ", " << posYmin << ", " << posYmax << endl;
+        
+        
+        // hard coded for now
+        float rx = posXmin * 640 - 10;
+        float ry = posYmin * 480 - 10;
+        float rw = posXmax * 640 - rx + 5;
+        float rh = posYmax * 480 - ry + 5;
+        //cout << "pixels: " << rx << ", " << ry << ", " << rw << ", " << rh << endl;
+        */
+        float rx = pxMin - 80;
+        float ry = pyMin - 30;
+        float rw = pxMax - pxMin + 150;
+        float rh = pyMax - pyMin + 60;
+        cv::Rect *rect = new cv::Rect(rx, ry, rw, rh);
+        blockBounds.push_back(rect);
 
     }
+    blockLock.unlock();
 //    cout << "there were " << j << " clusters found" << endl;
 
     // convert back to PointCloud2 for display via Ros message
@@ -152,6 +287,19 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     // publish the filtered data, should only be cubes in space now without table!
     pub.publish(output);
 
+
+
+    //pcl::PointCloud<pcl::PointXYZRGB> *cloudRGB = new pcl::PointCloud<pcl::PointXYZRGB>;
+    //pcl::PCLPointCloud2ConstPtr cloudPtr(cloud);
+
+    // Convert to PCL data type
+    //pcl::fromROSMsg(*cloud_msg, *cloudRGB);
+
+    /*sensor_msgs::Image image_;
+    pcl::toROSMsg(output, image_);
+    cv::Mat tempImg;
+    tempImg = cv_bridge::toCvCopy(image_, "bgr8")->image;
+    cv::imshow("view", tempImg);*/
 }
 
 void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
@@ -195,18 +343,34 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
     try
     {
         cv::Mat tempImg, grayImg;
-        tempImg = cv_bridge::toCvCopy(msg, "bgr8")->image;
+        
+        matLock.lock();
+        rgbImg = cv_bridge::toCvCopy(msg, "bgr8")->image;
+        matLock.unlock();
         //cv::cvtColor(tempImg, grayImg, CV_BGR2GRAY);
         //cv::imshow("view", tempImg);
 
 
+        // TODO: testing, this should only happen in service:
         // get a region of interest with a letter
-        //cv::cvSetImageROI(tempImg, cv::cvRect(0, 0, 100, 100); // x, y, width, height 
-        cv::Rect rect = cv::Rect(320, 275, 16, 16);
-        cv::Mat letterImg;
-        letterImg = tempImg(rect);
+        //cv::Rect rect = cv::Rect(320, 275, 16, 16);
+        //cv::Mat letterImg;
+        //letterImg = tempImg(rect);
 
-        cv::imshow("view", letterImg);
+        matLock.lock();
+        blockLock.lock();
+        for (int b = 0; b < blockBounds.size(); b++) {
+            cv::Rect *rect = blockBounds[b];
+            cv::Mat letterImg;
+            if (b == 0) {
+                letterImg = rgbImg(*rect);
+                cout << "----> imshow; " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
+                cv::imshow("view", letterImg);
+            }
+        }
+        //cv::imshow("view", rgbImg);
+        blockLock.unlock();
+        matLock.unlock();
         
         //cv::waitKey(30);
         //writing doesn't seem to work no matter what I try... ugh. It's not too important.
@@ -279,6 +443,17 @@ char bestMatch(cv::Mat cubeSnippet)
 bool getXYZ_ABC(vision::GetXYZFromABC::Request &req,
             vision::GetXYZFromABC::Response &res)
 {
+
+    blockLock.lock();
+
+    for (int b = 0; b < blockBounds.size(); b++) {
+        cv::Rect *rect = blockBounds[b];
+
+    }
+
+
+    blockLock.unlock();
+    // loop through cluster bounds and image mat to get corresponding position
     res.x = 0.0;
     res.y = 1.0;
     res.z = 1.0;
