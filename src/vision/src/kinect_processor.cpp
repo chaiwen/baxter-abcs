@@ -57,6 +57,14 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     pcl::PCLPointCloud2ConstPtr cloudPtr(cloud);
     pcl::PCLPointCloud2 cloud_filtered;
 
+    cout << "-------> " << cloud_msg->point_step << ", " << cloud_msg->row_step << endl;
+    
+    // cloud_msg->point_step = 32 = length of a point in bytes = 4x8byte float? RGBD?
+    // cloud_msg->row_step = 9830400 = 32 x 640 x 480
+    // kinect point cloud data is one array (cloud_msg->height = 1) of 307200 (cloud_msg->width = 640 x 480)
+    // cloud_msg->data = array of uint8 (size = row_step * height)
+
+
     // Convert to PCL data type
     pcl_conversions::toPCL(*cloud_msg, *cloud);
 
@@ -94,29 +102,45 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     ec.setInputCloud(old_filtered);
     ec.extract(cluster_indices);
 
-
-    pcl::PCDWriter writer;
+    cout << "getting each point of each cluster" << endl;
+    // old_filtered size will be the total number of cluster points. cluster indices index into this
+    // to get the points for each cluster
     int j = 0;
     for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
     {
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
-        for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit)
-            cloud_cluster->points.push_back(old_filtered->points[*pit]);
-        cloud_cluster->width = cloud_cluster->points.size();
-        cloud_cluster->height = 1;
-        cloud_cluster->is_dense = true;
+        // for each cluster:
+
+        //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+
+        float minX, maxX, minY, maxY;
+        int t = 1;
+        //cout << "cloud " << j << ": " << old_filtered->points.size() << endl;
+        for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit) {
+
+            
+            cout << "point" << t << ": " << old_filtered->points[*pit] << endl;
+
+            float x = old_filtered->points[*pit].x;
+            float y = old_filtered->points[*pit].y;
+            float z = old_filtered->points[*pit].z;
+
+            cout << x << "," << y << "," << z << endl;
+
+            t++;
+            //cloud_cluster->points.push_back(old_filtered->points[*pit]);
+        }
+        //cloud_cluster->width = cloud_cluster->points.size();
+        //cloud_cluster->height = 1;
+        //cloud_cluster->is_dense = true;
 
         //std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size() << " data points." << std::endl;
-        std::stringstream ss;
-        ss << "cloud_cluster_" << j << ".pcd";
-        writer.write<pcl::PointXYZ> (ss.str(), *cloud_cluster, false);
 
         j++;
 
     }
 //    cout << "there were " << j << " clusters found" << endl;
 
-    // convert back to PointCloud2...
+    // convert back to PointCloud2 for display via Ros message
     pcl::PCLPointCloud2 new_cloud;
     pcl::toPCLPointCloud2(*old_filtered, new_cloud);
     //pcl::PCLPointCloud2 = ROS message type replacing sensors_msgs::PointCloud2
@@ -133,6 +157,11 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
 {
     //ROS_INFO("I heard: [%s]", msg->data.c_str());
+
+    // msg->width = 640 = number of columns
+    // msg->height = 480 = number of rows
+    // msg->step = 1920
+    // msg->data[] = uint8, size = step * rows 
 
     static tf::TransformBroadcaster br;
 
@@ -168,10 +197,17 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
         cv::Mat tempImg, grayImg;
         tempImg = cv_bridge::toCvCopy(msg, "bgr8")->image;
         //cv::cvtColor(tempImg, grayImg, CV_BGR2GRAY);
-        cv::imshow("view", tempImg);
+        //cv::imshow("view", tempImg);
 
-//        cv::imshow("view", cv_bridge::toCvCopy(msg, "bgr8")->image);
 
+        // get a region of interest with a letter
+        //cv::cvSetImageROI(tempImg, cv::cvRect(0, 0, 100, 100); // x, y, width, height 
+        cv::Rect rect = cv::Rect(320, 275, 16, 16);
+        cv::Mat letterImg;
+        letterImg = tempImg(rect);
+
+        cv::imshow("view", letterImg);
+        
         //cv::waitKey(30);
         //writing doesn't seem to work no matter what I try... ugh. It's not too important.
         //grayImg.convertTo(grayImg, CV_8UC3, 255.0);
