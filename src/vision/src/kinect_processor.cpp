@@ -41,8 +41,8 @@ using namespace std;
 using namespace cv;
 
 int kcbCount = 0;
-vector<cv::Mat> templates(3); 
-vector<char> corresponding(3); //indices indicate the letter that the template image is
+vector<cv::Mat> templates(5); 
+vector<char> corresponding(5); //indices indicate the letter that the template image is
 
 Mutex blockLock;
 vector<cv::Rect *> blockBounds;
@@ -53,7 +53,7 @@ cv::Mat rgbImg;
 vector<BlockABC *> blocks;
 
 char bestMatch(cv::Mat cubeSnippet);
-
+void addBlock(char type); 
     
 ros::Publisher pub;
 int pclCount = 0;
@@ -212,7 +212,7 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         j++;
     }
     blockLock.unlock();
-    cout << ">>> there were " << j << " clusters found" << endl;
+    //cout << ">>> there were " << j << " clusters found" << endl;
 
     // convert back to PointCloud2 for display via Ros message
     pcl::PCLPointCloud2 new_cloud;
@@ -248,78 +248,20 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
     // send transform, timestamp, parent frame, child frame
     //br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", turtle_name));
 
-    //on the first callback, create the dictionary of template locations
-    if (kcbCount == 0)
-    {
-        //use point cloud data to find location of blocks and create block objects
-        /* for (int i=0; i<blocks.size(); i++) {
-        //for each block, call bestMatch (make sure the sub-image is larger than the templates!
-        //set the type to the right letter, make sure the 2d positioning is accurate and being used  
-        } 
-        */
-        cout << "kcbCount = 0" << endl;
-    }
-    else 
-    {
-        //cout << "kcbCount: ";
-        //cout << kcbCount << endl; 	
-    }
+		try
+		{
+				matLock.lock();
+				rgbImg = cv_bridge::toCvCopy(msg, "bgr8")->image;
+				matLock.unlock();
+				//cv::cvtColor(tempImg, grayImg, CV_BGR2GRAY);
+				//cv::imshow("view", tempImg);
+			
+		}
+		catch(cv_bridge::Exception& e)
+		{
+				ROS_ERROR("could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
+		}
 
-    try
-    {
-        cv::Mat tempImg, grayImg;
-
-        matLock.lock();
-        rgbImg = cv_bridge::toCvCopy(msg, "bgr8")->image;
-        matLock.unlock();
-        //cv::cvtColor(tempImg, grayImg, CV_BGR2GRAY);
-        //cv::imshow("view", tempImg);
-
-
-        // TODO: testing, this should only happen in service:
-        // get a region of interest with a letter
-
-        matLock.lock();
-        blockLock.lock();
-        for (int b = 0; b < blockBounds.size(); b++) {
-            cv::Rect *rect = blockBounds[b];
-            cv::Mat letterImg;
-            cout << "----> imshow " << b << ": " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
-            letterImg = rgbImg(*rect);
-
-            cv::imshow("view", letterImg);
-
-            pcl::PointXYZ *pt = blockPositions[b];
-            cout << "x: " << pt->x << ", " << pt->y << ", " << pt->z << endl;
-/*
-            cv::Mat grayLetter;
-            cv::cvtColor(letterImg, grayLetter, CV_BGR2GRAY);
-            char result;
-            result = bestMatch(grayLetter);
-            cout << result << endl;
-*/
-
-            sleep(1);
-        }
-        //cv::imshow("view", rgbImg);
-        blockLock.unlock();
-        matLock.unlock();
-
-        //cv::waitKey(30);
-        //writing doesn't seem to work no matter what I try... ugh. It's not too important.
-        //grayImg.convertTo(grayImg, CV_8UC3, 255.0);
-        //cv::imwrite("test.bmp", grayImg);
-        /*				cout << "kinect callback count: " <<endl;
-                        cout << kcbCount << endl; 
-                        cout << "i only call you when it's half past five" << endl;
-                        */
-    }
-    catch(cv_bridge::Exception& e)
-    {
-        ROS_ERROR("could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
-    }
-
-    kcbCount++;
 }
 
 //cubesnippet will be the image within the bounds of the cube found by the point cloud data
@@ -378,18 +320,48 @@ bool getXYZ_ABC(vision::GetXYZFromABC::Request &req,
 {
 
     blockLock.lock();
+		matLock.lock();
+			
+		for (int b = 0; b < blockBounds.size(); b++) {
+				cv::Rect *rect = blockBounds[b];
+				cv::Mat letterImg;
+				//cout << "----> imshow " << b << ": " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
+				letterImg = rgbImg(*rect);
 
-    for (int b = 0; b < blockBounds.size(); b++) {
-        cv::Rect *rect = blockBounds[b];
+				cv::imshow("view", letterImg);
 
-    }
+				pcl::PointXYZ *pt = blockPositions[b];
+				cout << "x: " << pt->x << ", " << pt->y << ", " << pt->z << endl;
 
+				cv::Mat grayLetter;
+				cv::cvtColor(letterImg, grayLetter, CV_BGR2GRAY);
+				//cv::imshow("view", grayLetter); 
+				char result;
+				result = bestMatch(grayLetter);
+				cout << "the best match: " << result << endl;
+				addBlock(result);
+				blocks[b]->setPosition(pt->x,pt->y,pt->z);	
+				sleep(1);
+		}
+		//cv::imshow("view", rgbImg);
+		blockLock.unlock();
+		matLock.unlock();
 
-    blockLock.unlock();
-    // loop through cluster bounds and image mat to get corresponding position
+		char reqChar;
+		reqChar = (char) req.letter.c_str();
+
     res.x = 0.0;
-    res.y = 1.0;
-    res.z = 1.0;
+    res.y = 0.0;
+    res.z = 0.0;
+
+    // loop through cluster bounds and image mat to get corresponding position
+		for (int j =0; j < blocks.size(); j++) {
+			if (blocks[j]->type == reqChar) {
+				res.x = blocks[j]->x;
+				res.y = blocks[j]->y;
+				res.z = blocks[j]->z; 
+			}
+		}
 
     ROS_INFO("request: %s", req.letter.c_str());
     ROS_INFO("sending back %lf %lf %lf", (double)res.x, (double)res.y, (double)res.z);
@@ -399,18 +371,25 @@ bool getXYZ_ABC(vision::GetXYZFromABC::Request &req,
 int main(int argc, char **argv)
 {
     //load images into template library
-    cv::Mat a, b, c, testb;
+    cv::Mat a, b, c, d, e, testb;
     char matchResult;
-    a = cv::imread("~/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/a.png", CV_LOAD_IMAGE_GRAYSCALE);
-    b = cv::imread("~/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/b.png", CV_LOAD_IMAGE_GRAYSCALE);
-    c = cv::imread("~/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/c.png", CV_LOAD_IMAGE_GRAYSCALE);
+    a = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/a.png", CV_LOAD_IMAGE_GRAYSCALE);
+    b = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/b.png", CV_LOAD_IMAGE_GRAYSCALE);
+    c = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/c.png", CV_LOAD_IMAGE_GRAYSCALE);
+		d = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/d.png", CV_LOAD_IMAGE_GRAYSCALE);
+		e = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/e.png", CV_LOAD_IMAGE_GRAYSCALE);
+
     //testb = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/testb.png", 1);
-    templates[0] = a;
-    templates[1] = b;
-    templates[2] = c;
-    corresponding[0] = 'a';
-    corresponding[1] = 'b';
-    corresponding[2] = 'c';
+		templates[0] = a;
+		templates[1] = b;
+		templates[2] = c;
+		templates[3] = d;
+		templates[4] = e;
+		corresponding[0] = 'a';
+		corresponding[1] = 'b';
+		corresponding[2] = 'c';
+		corresponding[3] = 'd';
+		corresponding[4] = 'e'; 
 
     /* works!
        matchResult = bestMatch(testb); 
@@ -468,9 +447,6 @@ int main(int argc, char **argv)
 
     // publisher for modified cloud
     pub = node.advertise<sensor_msgs::PointCloud2>("/kinect_mount/kinect_mount/kinect_object_cloud_filtered", 100);
-    cout << "kinect????" << endl;
-
-    BlockABC testA('a');
 
     // get XYZ service
     ros::ServiceServer service = node.advertiseService("get_xyz_from_abc", getXYZ_ABC);
