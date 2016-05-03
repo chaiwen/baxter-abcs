@@ -26,7 +26,11 @@ For every new terminal you open, you will need to run:
 $ source load_settings.sh
 ```
 
-Then run catkin_make.
+To set the path in the kinect processor file, run
+```bash
+$ python create_paths.py
+```
+from the project directory.
 
 To generate the rest of the block models from block A, go into the models folder [baxter-abcs/src/system_launch/world/models] and run:
 
@@ -35,6 +39,8 @@ $ python generate_block_models.py
 ```
 
 You should only need to do this once.
+
+Make sure you catkin_make before running the project.
 
 
 ## Running the project
@@ -49,12 +55,12 @@ $ roslaunch system_launch everything.launch
 ```bash
 $ source load_settings.sh
 $ rosrun baxter_tools enable_robot.py -e
-$ rosrun control control.py
+$ rosrun vision kinect_processor
 ```
 
 ```bash
 $ source load_settings.sh
-$ rosrun vision kinect_processor
+$ rosrun control control.py
 ```
 
 ```bash
