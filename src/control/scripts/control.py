@@ -62,11 +62,19 @@ def get_letter_position(letter):
 def place_block(block_tuple):
 		# (x, y, z) 
 		#
-    move_pub = rospy.Publisher("move_arm", String, queue_size=10)
+
+    # if this goes really poorly, here's the A block:
+    # block_tuple = (0.675, -0.17, 0.8)
+    # (we can just copy these over from block_world.world)
+    # worst case, we hardcode some switch cases in callback
+    # like, if l == A then blocks.append((0.675, -0.17, 0.8))
+    # etc
+
+    move_pub = rospy.Publisher("pick_up_blocks", String, queue_size=10)
     rospy.loginfo(str(block_tuple) + "\n")
     move_pub.publish(str(block_tuple))
     
-    print "yea baxter is moving the block with initial location: x=" + str(block_tuple[0]) + " y=" + str(block_tuple[1]) + " z=" + str(block_tuple[2])
+    print "baxter is moving the block with initial location: x=" + str(block_tuple[0]) + " y=" + str(block_tuple[1]) + " z=" + str(block_tuple[2])
 
 def wave():
     # store first and second wave position
