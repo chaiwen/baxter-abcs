@@ -17,7 +17,6 @@ rospy.init_node('control', anonymous=False)
 limb = baxter_interface.Limb('right')
 
 angles = {}
-blocks = []
 init_placement = (5,5,100)
 
 
@@ -38,11 +37,13 @@ def callback(data):
 #    wave()
     separated = list(data.data)
     print separated
-    
+
+    blocks = []
     for l in separated:
-        tup = get_letter_position(l) 
+        letter = l.lower()
+        tup = get_letter_position(letter) 
         #print 'callback tuple: '
-        print l
+        print letter
         print "got back position: "
         print tup
         
@@ -151,10 +152,9 @@ def control():
 
 if __name__ == '__main__':
 
-    #    bptup = get_letter_position('a')
-
-#    print "-----> got back: "
-#    print bptup
+    bptup = get_letter_position('a')
+    print "-----> got back for a: "
+    print bptup
 
     control() # this will subscribe and wave robot arm?
 
