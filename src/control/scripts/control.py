@@ -54,9 +54,41 @@ def callback(data):
 
 # 3 item tuple in format ( x, y, z)
 def get_letter_position(letter):
-		print 'Requesting position of: ' + letter + '\n'
-		x, y, z = get_xyz_client(letter)
-		return (x,y,z) 
+    print 'Requesting position of: ' + letter + '\n'
+    x, y, z = get_xyz_client(letter)
+    
+    listener = tf.TransformListener()
+    listener.waitForTransform("/kinect_mount_optical_frame", "/world", rospy.Time(), rospy.Duration(4.0))
+
+    #while not rospy.is_shutdown():
+    try:
+        now = rospy.Time.now()
+        listener.waitForTransform("/world", "/kinect_mount_optical_frame", now, rospy.Duration(4.0))
+        (trans,rot) = listener.lookupTransform("/world", "/kinect_mount_optical_frame", now)
+            
+        print trans
+        print rot
+            
+        pt = Point()
+        pt.x = x
+        pt.y = y
+        pt.z = z
+        print pt
+
+        mpt = PointStamped()
+        mpt.header.frame_id = "/kinect_mount_optical_frame" 
+        mpt.point = pt
+        
+        print "attempted point stamped: " 
+        print mpt
+        transformed_point = listener.transformPoint("/world", mpt)            
+        print transformed_point
+        print type(transformed_point)
+            
+    except:
+        print "exception thrown could not get tf point!! :("
+
+    return (transformed_point.point.x, transformed_point.point.y, transformed_point.point.z)
 
 
 def place_block(block_tuple):
@@ -115,37 +147,11 @@ def control():
 if __name__ == '__main__':
     
     bptup = get_letter_position('a')
-    print bptup
     
-    listener = tf.TransformListener()
-    listener.waitForTransform("/kinect_mount_optical_frame", "/world", rospy.Time(), rospy.Duration(4.0))
+    print "-----> got back: "
+    print bptup
 
-    while not rospy.is_shutdown():
-        try:
-            now = rospy.Time.now()
-            listener.waitForTransform("/world", "/kinect_mount_optical_frame", now, rospy.Duration(4.0))
-            (trans,rot) = listener.lookupTransform("/world", "/kinect_mount_optical_frame", now)
-            
-            print trans
-            print rot
-            
-            pt = Point()
-            pt.x = bptup[0]
-            pt.y = bptup[1]
-            pt.z = bptup[2] 
-            print pt
-            mpt = PointStamped()
-            mpt.header.frame_id = "/kinect_mount_optical_frame" 
-            print "attempted point stamped: " 
-            print mpt
-            transformed_point = listener.transformPoint("/world", mpt)            
-            print transformed_point
-            print type(transformed_point)
-            
-        except:
-            print "hello"
-
-#control() # this will subscribe and wave robot arm?
+    #control() # this will subscribe and wave robot arm?
 
 #abc = "BLOCK A!"
 #print "Requesting position of %s"%(abc)

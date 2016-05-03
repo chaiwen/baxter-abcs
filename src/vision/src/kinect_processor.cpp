@@ -154,10 +154,15 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 
             numP++;
         }
-        float weirdo_error = 1.8;
-        centerX = weirdo_error * centerX / numP;
-        centerY = weirdo_error * centerY / numP;
+        centerX = centerX / numP;
+        centerY = centerY / numP;
         centerZ = centerZ / numP;
+        // store the xyz location before multiplying by strange error for 2d image space:
+        pcl::PointXYZ *pt_xyz = new pcl::PointXYZ(centerX, centerY, centerZ);
+        
+        float weirdo_error = 1.8;
+        centerX *= weirdo_error;
+        centerY *= weirdo_error;
 
         //cout << "cluster " << j << " center: " << centerX << ", " << centerY << ", " << centerZ << endl;
         //cout << "width: " << maxCX - minCX << ", height: " << maxCY - minCY << endl;
@@ -200,9 +205,7 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         if (ry + rh > 479) rh = 479 - ry;
         cv::Rect *rect = new cv::Rect(rx, ry, rw, rh);
         blockBounds.push_back(rect);
-
-        pcl::PointXYZ *ptxyz = new pcl::PointXYZ(centerX, centerY, centerZ);
-        blockPositions.push_back(ptxyz);
+        blockPositions.push_back(pt_xyz);
 
         j++;
     }
