@@ -34,29 +34,34 @@ def get_xyz_client(abc):
 
 # this is where we will separate the thing to be spelled into a list of locations, to be picked up in that order
 def callback(data):
-#    rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
+    #    rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
 #    wave()
-		separated = list(data.data)
-		print separated
-		for l in separated:
-				tup = get_letter_position(l) 
-				#print 'callback tuple: '
-				#print tup
-				blocks.append(tup) 
+    separated = list(data.data)
+    print separated
+    
+    for l in separated:
+        tup = get_letter_position(l) 
+        #print 'callback tuple: '
+        print l
+        print "got back position: "
+        print tup
+        
+        blocks.append(tup) 
 
-		# print "the final blocks in order" 
-		# print blocks
+        # print "the final blocks in order" 
+        # print blocks
 
-		for block in blocks:
-			print block
-			place_block(block)
-			
+    for block in blocks:
+        print block
+        place_block(block)
+
+
 
 # 3 item tuple in format ( x, y, z)
 def get_letter_position(letter):
     print 'Requesting position of: ' + letter + '\n'
     x, y, z = get_xyz_client(letter)
-    
+
     listener = tf.TransformListener()
     listener.waitForTransform("/kinect_mount_optical_frame", "/world", rospy.Time(), rospy.Duration(4.0))
 
@@ -65,10 +70,10 @@ def get_letter_position(letter):
         now = rospy.Time.now()
         listener.waitForTransform("/world", "/kinect_mount_optical_frame", now, rospy.Duration(4.0))
         (trans,rot) = listener.lookupTransform("/world", "/kinect_mount_optical_frame", now)
-            
+
         print trans
         print rot
-            
+
         pt = Point()
         pt.x = x
         pt.y = y
@@ -78,13 +83,13 @@ def get_letter_position(letter):
         mpt = PointStamped()
         mpt.header.frame_id = "/kinect_mount_optical_frame" 
         mpt.point = pt
-        
+
         print "attempted point stamped: " 
         print mpt
         transformed_point = listener.transformPoint("/world", mpt)            
         print transformed_point
         print type(transformed_point)
-            
+
     except:
         print "exception thrown could not get tf point!! :("
 
@@ -92,8 +97,8 @@ def get_letter_position(letter):
 
 
 def place_block(block_tuple):
-		# (x, y, z) 
-		#
+    # (x, y, z) 
+                #
 
     # if this goes really poorly, here's the A block:
     # block_tuple = (0.675, -0.17, 0.8)
@@ -105,7 +110,7 @@ def place_block(block_tuple):
     move_pub = rospy.Publisher("pick_up_blocks", String, queue_size=10)
     rospy.loginfo(str(block_tuple) + "\n")
     move_pub.publish(str(block_tuple))
-    
+
     print "baxter is moving the block with initial location: x=" + str(block_tuple[0]) + " y=" + str(block_tuple[1]) + " z=" + str(block_tuple[2])
 
 def wave():
@@ -125,7 +130,7 @@ def control():
     # anonymous=True flag means that rospy will choose a unique
     # name for our 'listener' node so that multiple listeners can
     # run simultaneously.
-    
+
     # get current joint angles
     angles = limb.joint_angles()
     angles['right_s0']=0.0
@@ -139,19 +144,19 @@ def control():
     limb.move_to_joint_positions(angles)
 
     rospy.Subscriber("speech_command", String, callback)
-    
+
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()
 
 
 if __name__ == '__main__':
-    
-    bptup = get_letter_position('a')
-    
-    print "-----> got back: "
-    print bptup
 
-    #control() # this will subscribe and wave robot arm?
+    #    bptup = get_letter_position('a')
+
+#    print "-----> got back: "
+#    print bptup
+
+    control() # this will subscribe and wave robot arm?
 
 #abc = "BLOCK A!"
 #print "Requesting position of %s"%(abc)
