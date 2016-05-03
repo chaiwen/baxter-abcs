@@ -51,6 +51,9 @@ cv::Mat rgbImg;
 
 vector<BlockABC *> blocks;
 
+char bestMatch(cv::Mat cubeSnippet);
+
+    
 ros::Publisher pub;
 int pclCount = 0;
 void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
@@ -73,7 +76,7 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     pcl::PointCloud<pcl::PointXYZ> original_cloud;
     pcl::fromROSMsg(*cloud_msg, original_cloud);
     // loop thru 307200 points:
-  
+
     // Downsample the points using leaf size of 1cm
     pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
     sor.setInputCloud(cloudPtr);
@@ -87,7 +90,7 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     pcl::fromPCLPointCloud2(cloud_filtered, *cloudv1);
 
     //cout << old_cloud->points[0].x << " " << old_cloud->points[0].y << " " << old_cloud->points[0].z << endl;
-   
+
     pcl::PassThrough<pcl::PointXYZ> pass; //TODO maybe there's a passthrough filter for pointCloud2?
     pass.setInputCloud(old_cloud);
     pass.setFilterFieldName("z");
@@ -108,13 +111,13 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     ec.setInputCloud(old_filtered);
     ec.extract(cluster_indices);
 
-     
+
     blockLock.lock();
     for (int b = 0; b < blockBounds.size(); b++) {
         delete blockBounds[b];
     }
     blockBounds.clear();
-    
+
     //cout << "getting each point of each cluster" << endl;
     // old_filtered size will be the total number of cluster points. cluster indices index into this
     // to get the points for each cluster
@@ -200,7 +203,7 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
             }
             px++;
         }
-        
+
         float rx = pxMin - 70;
         float ry = pyMin - 70;
         float rw = 140;
@@ -271,7 +274,7 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
     try
     {
         cv::Mat tempImg, grayImg;
-        
+
         matLock.lock();
         rgbImg = cv_bridge::toCvCopy(msg, "bgr8")->image;
         matLock.unlock();
@@ -281,9 +284,6 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
 
         // TODO: testing, this should only happen in service:
         // get a region of interest with a letter
-        //cv::Rect rect = cv::Rect(320, 275, 16, 16);
-        //cv::Mat letterImg;
-        //letterImg = tempImg(rect);
 
         matLock.lock();
         blockLock.lock();
@@ -291,18 +291,24 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
             cv::Rect *rect = blockBounds[b];
             cv::Mat letterImg;
             cout << "----> imshow " << b << ": " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
-            //if (b == 2) {
-                letterImg = rgbImg(*rect);
-                cv::imshow("view", letterImg);
+            letterImg = rgbImg(*rect);
 
-                cout << rgbImg.size() << endl;
-            //}
-                sleep(1);
+            cv::imshow("view", letterImg);
+
+
+            cv::Mat grayLetter;
+            cv::cvtColor(letterImg, grayLetter, CV_BGR2GRAY);
+            char result;
+            result = bestMatch(grayLetter);
+            cout << result << endl;
+
+
+            sleep(1);
         }
         //cv::imshow("view", rgbImg);
         blockLock.unlock();
         matLock.unlock();
-        
+
         //cv::waitKey(30);
         //writing doesn't seem to work no matter what I try... ugh. It's not too important.
         //grayImg.convertTo(grayImg, CV_8UC3, 255.0);
@@ -372,7 +378,7 @@ char bestMatch(cv::Mat cubeSnippet)
 }
 
 bool getXYZ_ABC(vision::GetXYZFromABC::Request &req,
-            vision::GetXYZFromABC::Response &res)
+        vision::GetXYZFromABC::Response &res)
 {
 
     blockLock.lock();
@@ -399,9 +405,9 @@ int main(int argc, char **argv)
     //load images into template library
     cv::Mat a, b, c, testb;
     char matchResult;
-    a = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/a.png", 1);
-    b = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/b.png", 1);
-    c = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/c.png", 1);
+    a = cv::imread("~/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/a.png", CV_LOAD_IMAGE_GRAYSCALE);
+    b = cv::imread("~/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/b.png", CV_LOAD_IMAGE_GRAYSCALE);
+    c = cv::imread("~/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/c.png", CV_LOAD_IMAGE_GRAYSCALE);
     //testb = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/testb.png", 1);
     templates[0] = a;
     templates[1] = b;
@@ -460,7 +466,7 @@ int main(int argc, char **argv)
     image_transport::ImageTransport it(node);
     image_transport::Subscriber sub = it.subscribe("/kinect_mount/kinect_mount/rgb/image_raw", 1, kinectCallback);
 
-    
+
     ros::Subscriber sub2 = node.subscribe<sensor_msgs::PointCloud2>("/kinect_mount/kinect_mount/rgb/points", 1, ptCloudCallback);
 
 
