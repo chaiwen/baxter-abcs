@@ -184,7 +184,10 @@ def pick_up_block(data):
 
     x_dist = float(xyz[0])
     y_dist = float(xyz[1])
-    z_dist = -0.156
+    z_dist = -0.155
+
+    print x_dist
+    print y_dist
 
     # The Pose of the block in its initial location.
     # You may wish to replace these poses with estimates
@@ -199,7 +202,6 @@ def pick_up_block(data):
     # Move to the desired starting angles
     pnp.move_to_start(starting_joint_angles)
 
-
     # Pick and place the blocks
     idx = 0
     while idx < len(block_poses):
@@ -209,6 +211,8 @@ def pick_up_block(data):
         #idx = idx + 1 #(idx+1) % len(block_poses)
         pnp.place(block_poses[idx])
         idx = idx + 1
+
+    rospy.sleep(1.0)
 
 
 def main():
@@ -228,6 +232,7 @@ def main():
     # Wait for the All Clear from emulator startup
     rospy.wait_for_message("/robot/sim/started", Empty)
 
+    #pick_up_block("(0.675, -0.17, 0.8)")
     #pick_up_block("(0.83, 0.33, 0.8)")
 
     rospy.Subscriber("pick_up_blocks", String, pick_up_block)
