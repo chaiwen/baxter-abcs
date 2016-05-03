@@ -5,7 +5,7 @@ import rospy
 import math
 
 import tf
-import geometry_msgs.msg
+from geometry_msgs.msg import Point, PointStamped
 
 import baxter_interface
 
@@ -114,8 +114,8 @@ def control():
 
 if __name__ == '__main__':
     
-    x,y,z = get_letter_position('b')
-    print x, y, z
+    bptup = get_letter_position('a')
+    print bptup
     
     listener = tf.TransformListener()
     listener.waitForTransform("/kinect_mount_optical_frame", "/world", rospy.Time(), rospy.Duration(4.0))
@@ -128,9 +128,19 @@ if __name__ == '__main__':
             
             print trans
             print rot
-
-
             
+            pt = Point()
+            pt.x = bptup[0]
+            pt.y = bptup[1]
+            pt.z = bptup[2] 
+            print pt
+            mpt = PointStamped()
+            mpt.header.frame_id = "/kinect_mount_optical_frame" 
+            print "attempted point stamped: " 
+            print mpt
+            transformed_point = listener.transformPoint("/world", mpt)            
+            print transformed_point
+            print type(transformed_point)
             
         except:
             print "hello"
