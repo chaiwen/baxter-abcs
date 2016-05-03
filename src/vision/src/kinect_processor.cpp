@@ -46,6 +46,7 @@ vector<char> corresponding(5); //indices indicate the letter that the template i
 
 Mutex blockLock;
 vector<cv::Rect *> blockBounds;
+vector<pcl::PointXYZ *> blockPositions;
 Mutex matLock;
 cv::Mat rgbImg;
 
@@ -115,8 +116,10 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     blockLock.lock();
     for (int b = 0; b < blockBounds.size(); b++) {
         delete blockBounds[b];
+        delete blockPositions[b];
     }
     blockBounds.clear();
+    blockPositions.clear();
 
     //cout << "getting each point of each cluster" << endl;
     // old_filtered size will be the total number of cluster points. cluster indices index into this
@@ -161,10 +164,8 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         sumY = weirdo_error * sumY / numP;
         sumZ = weirdo_error * sumZ / numP;
 
-
-
-        cout << "cluster " << j << " center: " << sumX << ", " << sumY << ", " << sumZ << endl;
-        cout << "width: " << maxCX - minCX << ", height: " << maxCY - minCY << endl;
+        //cout << "cluster " << j << " center: " << sumX << ", " << sumY << ", " << sumZ << endl;
+        //cout << "width: " << maxCX - minCX << ", height: " << maxCY - minCY << endl;
 
         int px = 0;
         int pxMin = 0;
@@ -172,13 +173,8 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         for (int ct = 0; ct < 640; ct++) {
             pcl::PointXYZ pt = original_cloud[ct];
 
-            //if (j == 0) cout << pt.x << endl;
             if (sumX < pt.x) {
                 pxMin = px;
-
-
-                //cout << "x before: " << original_cloud[ct - 1].x << ", current: " << pt.x << ", after: " << original_cloud[ct + 1].x;
-                //cout << ", sumX: " << sumX << endl;
                 break;
             }
             
@@ -190,7 +186,6 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         for (int ct = 0; ct < 307200; ct += 640) {
             pcl::PointXYZ pt = original_cloud[ct];
 
-            //if (j == 0) cout << pt.y << endl;
             if (sumY < pt.y) {
                 pyMin = px;
                 break;
@@ -198,10 +193,10 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
             px++;
         }
 
-        float rx = pxMin - 50;
-        float ry = pyMin - 50;
-        float rw = 100;
-        float rh = 100;
+        float rx = pxMin - 40;
+        float ry = pyMin - 40;
+        float rw = 80;
+        float rh = 80;
 
         if (rx < 0) rx = 0;
         if (ry < 0) ry = 0;
@@ -210,6 +205,9 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         if (ry + rh > 479) rh = 479 - ry;
         cv::Rect *rect = new cv::Rect(rx, ry, rw, rh);
         blockBounds.push_back(rect);
+
+        pcl::PointXYZ *ptxyz = new pcl::PointXYZ(sumX, sumY, sumZ);
+        blockPositions.push_back(ptxyz);
 
         j++;
     }
@@ -288,6 +286,11 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
             cv::Mat letterImg;
             cout << "----> imshow " << b << ": " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
             letterImg = rgbImg(*rect);
+
+            cv::imshow("view", letterImg);
+
+            pcl::PointXYZ *pt = blockPositions[b];
+            cout << "x: " << pt->x << ", " << pt->y << ", " << pt->z << endl;
 
             cv::Mat grayLetter;
             cv::cvtColor(letterImg, grayLetter, CV_BGR2GRAY);
