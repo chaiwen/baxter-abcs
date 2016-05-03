@@ -1,6 +1,12 @@
 #!/usr/bin/env python
+import roslib
 import sys
 import rospy
+import math
+
+import tf
+import geometry_msgs.msg
+
 import baxter_interface
 
 from vision.srv import *
@@ -99,8 +105,30 @@ def control():
 
 
 if __name__ == '__main__':
-    control() # this will subscribe and wave robot arm?
     
-		#abc = "BLOCK A!"
-    #print "Requesting position of %s"%(abc)
-    #print "%s = %d %d %d"%(abc, x, y, z)
+    x,y,z = get_letter_position('b')
+    print x, y, z
+    
+    listener = tf.TransformListener()
+    listener.waitForTransform("/kinect_mount_optical_frame", "/world", rospy.Time(), rospy.Duration(4.0))
+
+    while not rospy.is_shutdown():
+        try:
+            now = rospy.Time.now()
+            listener.waitForTransform("/world", "/kinect_mount_optical_frame", now, rospy.Duration(4.0))
+            (trans,rot) = listener.lookupTransform("/world", "/kinect_mount_optical_frame", now)
+            
+            print trans
+            print rot
+
+
+            
+            
+        except:
+            print "hello"
+
+#control() # this will subscribe and wave robot arm?
+
+#abc = "BLOCK A!"
+#print "Requesting position of %s"%(abc)
+#print "%s = %d %d %d"%(abc, x, y, z)

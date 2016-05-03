@@ -41,21 +41,22 @@ using namespace std;
 using namespace cv;
 
 int kcbCount = 0;
-vector<cv::Mat> templates(3); 
-vector<char> corresponding(3); //indices indicate the letter that the template image is
+vector<cv::Mat> templates(5); 
+vector<char> corresponding(5); //indices indicate the letter that the template image is
 
 Mutex blockLock;
 vector<cv::Rect *> blockBounds;
+vector<pcl::PointXYZ *> blockPositions;
 Mutex matLock;
 cv::Mat rgbImg;
 
 vector<BlockABC *> blocks;
-
 char bestMatch(cv::Mat cubeSnippet);
+void addBlock(char type); 
+void deleteBlocks();
 
-    
 ros::Publisher pub;
-int pclCount = 0;
+
 void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
 
@@ -115,8 +116,10 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     blockLock.lock();
     for (int b = 0; b < blockBounds.size(); b++) {
         delete blockBounds[b];
+        delete blockPositions[b];
     }
     blockBounds.clear();
+    blockPositions.clear();
 
     //cout << "getting each point of each cluster" << endl;
     // old_filtered size will be the total number of cluster points. cluster indices index into this
@@ -127,7 +130,7 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         // for each cluster:
         //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
         //cout << "cloud " << j << ": " << old_filtered->points.size() << endl; // total number of points overall
-        float sumX = 0.0, sumY = 0.0, sumZ = 0.0;
+        float centerX = 0.0, centerY = 0.0, centerZ = 0.0;
 
         float minCX = 50, minCY = 50;
         float maxCX = -50, maxCY = -50;
@@ -145,26 +148,19 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
             if (y < minCY) minCY = y;
             if (y > maxCY) maxCY = y;
 
-            if (j == 0) {
-                //cout << numP << ": " << x << ", " << y << ", " << z << endl;
-            }
-            sumX += x;
-            sumY += y;
-            sumZ += z;
+            centerX += x;
+            centerY += y;
+            centerZ += z;
 
             numP++;
-
-
         }
         float weirdo_error = 1.8;
-        sumX = weirdo_error * sumX / numP;
-        sumY = weirdo_error * sumY / numP;
-        sumZ = weirdo_error * sumZ / numP;
+        centerX = weirdo_error * centerX / numP;
+        centerY = weirdo_error * centerY / numP;
+        centerZ = centerZ / numP;
 
-
-
-        cout << "cluster " << j << " center: " << sumX << ", " << sumY << ", " << sumZ << endl;
-        cout << "width: " << maxCX - minCX << ", height: " << maxCY - minCY << endl;
+        //cout << "cluster " << j << " center: " << centerX << ", " << centerY << ", " << centerZ << endl;
+        //cout << "width: " << maxCX - minCX << ", height: " << maxCY - minCY << endl;
 
         int px = 0;
         int pxMin = 0;
@@ -172,16 +168,11 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         for (int ct = 0; ct < 640; ct++) {
             pcl::PointXYZ pt = original_cloud[ct];
 
-            //if (j == 0) cout << pt.x << endl;
-            if (sumX < pt.x) {
+            if (centerX < pt.x) {
                 pxMin = px;
-
-
-                //cout << "x before: " << original_cloud[ct - 1].x << ", current: " << pt.x << ", after: " << original_cloud[ct + 1].x;
-                //cout << ", sumX: " << sumX << endl;
                 break;
             }
-            
+
             px++;
         }
 
@@ -190,31 +181,33 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         for (int ct = 0; ct < 307200; ct += 640) {
             pcl::PointXYZ pt = original_cloud[ct];
 
-            //if (j == 0) cout << pt.y << endl;
-            if (sumY < pt.y) {
+            if (centerY < pt.y) {
                 pyMin = px;
                 break;
             }
             px++;
         }
 
-        float rx = pxMin - 50;
-        float ry = pyMin - 50;
-        float rw = 100;
-        float rh = 100;
+        float rx = pxMin - 40;
+        float ry = pyMin - 40;
+        float rw = 80;
+        float rh = 80;
 
         if (rx < 0) rx = 0;
         if (ry < 0) ry = 0;
-        
+
         if (rx + rw > 639) rw = 639 - rx;
         if (ry + rh > 479) rh = 479 - ry;
         cv::Rect *rect = new cv::Rect(rx, ry, rw, rh);
         blockBounds.push_back(rect);
 
+        pcl::PointXYZ *ptxyz = new pcl::PointXYZ(centerX, centerY, centerZ);
+        blockPositions.push_back(ptxyz);
+
         j++;
     }
     blockLock.unlock();
-    cout << ">>> there were " << j << " clusters found" << endl;
+    //cout << ">>> there were " << j << " clusters found" << endl;
 
     // convert back to PointCloud2 for display via Ros message
     pcl::PCLPointCloud2 new_cloud;
@@ -226,51 +219,14 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 
     // publish the filtered data, should only be cubes in space now without table!
     pub.publish(output);
-
 }
 
 void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
 {
-    //ROS_INFO("I heard: [%s]", msg->data.c_str());
-
-    // msg->width = 640 = number of columns
-    // msg->height = 480 = number of rows
-    // msg->step = 1920
-    // msg->data[] = uint8, size = step * rows 
-
     static tf::TransformBroadcaster br;
-
-    /*tf::Transform transform;
-      transform.setOrigin( tf::Vector3(msg->x, msg->y, 0.0) );
-      tf::Quaternion q;
-      q.setRPY(0, 0, msg->theta);
-
-      transform.setRotation(q);
-      */
-    // send transform, timestamp, parent frame, child frame
-    //br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", turtle_name));
-
-    //on the first callback, create the dictionary of template locations
-    if (kcbCount == 0)
-    {
-        //use point cloud data to find location of blocks and create block objects
-        /* for (int i=0; i<blocks.size(); i++) {
-        //for each block, call bestMatch (make sure the sub-image is larger than the templates!
-        //set the type to the right letter, make sure the 2d positioning is accurate and being used  
-        } 
-        */
-        cout << "kcbCount = 0" << endl;
-    }
-    else 
-    {
-        //cout << "kcbCount: ";
-        //cout << kcbCount << endl; 	
-    }
 
     try
     {
-        cv::Mat tempImg, grayImg;
-
         matLock.lock();
         rgbImg = cv_bridge::toCvCopy(msg, "bgr8")->image;
         matLock.unlock();
@@ -278,48 +234,32 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
         //cv::imshow("view", tempImg);
 
 
-        // TODO: testing, this should only happen in service:
-        // get a region of interest with a letter
-
+        // keep for testing, continuous checking
+        /*blockLock.lock();
         matLock.lock();
-        blockLock.lock();
         for (int b = 0; b < blockBounds.size(); b++) {
             cv::Rect *rect = blockBounds[b];
             cv::Mat letterImg;
-            cout << "----> imshow " << b << ": " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
+            //cout << "----> imshow " << b << ": " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
             letterImg = rgbImg(*rect);
 
-            cv::imshow("view", letterImg);
+            cv::Mat grayImg;
+            cv::cvtColor(letterImg, grayImg, CV_BGR2GRAY);
+            cv::imshow("view", grayImg);
 
-/*
-            cv::Mat grayLetter;
-            cv::cvtColor(letterImg, grayLetter, CV_BGR2GRAY);
             char result;
-            result = bestMatch(grayLetter);
-            cout << result << endl;
-*/
+            result = bestMatch(grayImg);
+            cout << "the best match " << b << ": " << result << endl;
 
             sleep(1);
         }
-        //cv::imshow("view", rgbImg);
-        blockLock.unlock();
         matLock.unlock();
-
-        //cv::waitKey(30);
-        //writing doesn't seem to work no matter what I try... ugh. It's not too important.
-        //grayImg.convertTo(grayImg, CV_8UC3, 255.0);
-        //cv::imwrite("test.bmp", grayImg);
-        /*				cout << "kinect callback count: " <<endl;
-                        cout << kcbCount << endl; 
-                        cout << "i only call you when it's half past five" << endl;
-                        */
+        blockLock.unlock();*/
     }
     catch(cv_bridge::Exception& e)
     {
         ROS_ERROR("could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
     }
-
-    kcbCount++;
 }
 
 //cubesnippet will be the image within the bounds of the cube found by the point cloud data
@@ -377,40 +317,95 @@ bool getXYZ_ABC(vision::GetXYZFromABC::Request &req,
         vision::GetXYZFromABC::Response &res)
 {
 
-    blockLock.lock();
+    char reqChar = req.letter.c_str()[0];
 
+    blockLock.lock();
+    matLock.lock();
+
+    //deleteBlocks();
     for (int b = 0; b < blockBounds.size(); b++) {
         cv::Rect *rect = blockBounds[b];
+        cv::Mat letterImg;
+        //cout << "----> imshow " << b << ": " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
+        letterImg = rgbImg(*rect);
+        
+        cv::Mat grayImg;
+        cv::cvtColor(letterImg, grayImg, CV_BGR2GRAY);
+        cv::imshow("view", grayImg);
 
+        char result = bestMatch(grayImg);
+        cout << "the best match: " << result << endl;
+
+        if (result == reqChar) {
+            
+            pcl::PointXYZ *pt = blockPositions[b];
+            cout << "x: " << pt->x << ", " << pt->y << ", " << pt->z << endl;
+
+            res.x = pt->x;
+            res.y = pt->y;
+            res.z = pt->z;
+
+            break;
+        }
+        //addBlock(result, pt->x, pt->y, pt->z);
+        sleep(1);
     }
-
-
+    //cv::imshow("view", rgbImg);
+    matLock.unlock();
     blockLock.unlock();
-    // loop through cluster bounds and image mat to get corresponding position
-    res.x = 0.0;
-    res.y = 1.0;
-    res.z = 1.0;
-
+    
     ROS_INFO("request: %s", req.letter.c_str());
     ROS_INFO("sending back %lf %lf %lf", (double)res.x, (double)res.y, (double)res.z);
 
     return true;
 }
+
+void loadABC(const char *name, cv::Mat *a, cv::Mat *b, cv::Mat *c, cv::Mat *d, cv::Mat *e)
+{
+    string path = "";
+
+    if (strcmp(name, "chaiwen") == 0) {
+        path = "/home/cc3636/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/";
+    } else if (strcmp(name, "mango") == 0) {
+        path = "/home/yl2908/baxter-abcs/src/vision/src/templates/";
+    }
+
+    string pathA = path + "a.png";
+    *a = cv::imread(pathA, CV_LOAD_IMAGE_GRAYSCALE);
+
+    string pathB = path + "b.png";
+    *b = cv::imread(pathB, CV_LOAD_IMAGE_GRAYSCALE);
+
+    string pathC = path + "c.png";
+    *c = cv::imread(pathC, CV_LOAD_IMAGE_GRAYSCALE);
+
+    string pathD = path + "d.png";
+    *d = cv::imread(pathD, CV_LOAD_IMAGE_GRAYSCALE);
+
+    string pathE = path + "e.png";
+    *e = cv::imread(pathE, CV_LOAD_IMAGE_GRAYSCALE);
+
+}
 int main(int argc, char **argv)
 {
     //load images into template library
-    cv::Mat a, b, c, testb;
+    cv::Mat a, b, c, d, e, testb;
     char matchResult;
-    a = cv::imread("~/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/a.png", CV_LOAD_IMAGE_GRAYSCALE);
-    b = cv::imread("~/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/b.png", CV_LOAD_IMAGE_GRAYSCALE);
-    c = cv::imread("~/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/c.png", CV_LOAD_IMAGE_GRAYSCALE);
+    
+    loadABC("chaiwen", &a, &b, &c, &d, &e);
+    
+    //loadABC("mango", &a, &b, &c, &d, &e);
     //testb = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/testb.png", 1);
     templates[0] = a;
     templates[1] = b;
     templates[2] = c;
+    templates[3] = d;
+    templates[4] = e;
     corresponding[0] = 'a';
     corresponding[1] = 'b';
     corresponding[2] = 'c';
+    corresponding[3] = 'd';
+    corresponding[4] = 'e'; 
 
     /* works!
        matchResult = bestMatch(testb); 
@@ -468,9 +463,6 @@ int main(int argc, char **argv)
 
     // publisher for modified cloud
     pub = node.advertise<sensor_msgs::PointCloud2>("/kinect_mount/kinect_mount/kinect_object_cloud_filtered", 100);
-    cout << "kinect????" << endl;
-
-    BlockABC testA('a');
 
     // get XYZ service
     ros::ServiceServer service = node.advertiseService("get_xyz_from_abc", getXYZ_ABC);
@@ -496,7 +488,8 @@ void deleteBlocks() {
 
 /* adds a block to vector of blocks */
 // eg: addBlock('a');
-void addBlock(char type) {
+void addBlock(char type, float x, float y, float z) {
     BlockABC *block = new BlockABC(type);
+    block->setPosition(x, y, z);
     blocks.push_back(block);
 }
