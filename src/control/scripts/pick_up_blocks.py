@@ -22,6 +22,7 @@ from geometry_msgs.msg import (
     Quaternion,
 )
 from std_msgs.msg import (
+    String,
     Header,
     Empty,
 )
@@ -158,6 +159,20 @@ def pick_up_block(data):
 
     xyz = data.data[1:-1].split(", ")
 
+    limb = 'left'
+    hover_distance = 0.15 # meters
+    
+    # Starting Joint angles for left arm
+    starting_joint_angles = {'left_w0': 0.6699952259595108,
+                             'left_w1': 1.030009435085784,
+                             'left_w2': -0.4999997247485215,
+                             'left_e0': -1.189968899785275,
+                             'left_e1': 1.9400238130755056,
+                             'left_s0': -0.08000397926829805,
+                             'left_s1': -0.9999781166910306}
+   
+    pnp = PickAndPlace(limb, hover_distance)
+
     # An orientation for gripper fingers to be overhead and parallel to the obj
     overhead_orientation = Quaternion(
                              x=-0.0249590815779,
@@ -181,14 +196,9 @@ def pick_up_block(data):
         position=Point(x=x_dist, y=y_dist, z=z_dist),
         orientation=overhead_orientation))
 
-    pick_and_place(block_poses)
+    # Move to the desired starting angles
+    pnp.move_to_start(starting_joint_angles)
 
-
-def pick_and_place(block_poses):
-    limb = 'left'
-    hover_distance = 0.15 # meters
-
-    pnp = PickAndPlace(limb, hover_distance)
 
     # Pick and place the blocks
     idx = 0
@@ -213,27 +223,10 @@ def main():
    can improve on this demo by adding perception and feedback to close
    the loop.
    """
-    rospy.init_node("pick_up_blocks")
+    rospy.init_node("pick_up_blocks", anonymous=False)
     
     # Wait for the All Clear from emulator startup
     rospy.wait_for_message("/robot/sim/started", Empty)
-
-    limb = 'left'
-    hover_distance = 0.15 # meters
-    
-    # Starting Joint angles for left arm
-    starting_joint_angles = {'left_w0': 0.6699952259595108,
-                             'left_w1': 1.030009435085784,
-                             'left_w2': -0.4999997247485215,
-                             'left_e0': -1.189968899785275,
-                             'left_e1': 1.9400238130755056,
-                             'left_s0': -0.08000397926829805,
-                             'left_s1': -0.9999781166910306}
-   
-    pnp = PickAndPlace(limb, hover_distance)
-        
-    # Move to the desired starting angles
-    pnp.move_to_start(starting_joint_angles)
 
     #pick_up_block("(0.83, 0.33, 0.8)")
 
