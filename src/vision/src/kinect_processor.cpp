@@ -375,8 +375,8 @@ bool getXYZ_ABC(vision::GetXYZFromABC::Request &req,
 
 void loadABC(cv::Mat *a, cv::Mat *b, cv::Mat *c, cv::Mat *d, cv::Mat *e)
 {
-    string path = "__PATH__" + "/src/vision/src/templates/";
-    }
+    string path = "__PATH__";
+    path += "/src/vision/src/templates/";
 
     string pathA = path + "a.png";
     *a = cv::imread(pathA, CV_LOAD_IMAGE_GRAYSCALE);
