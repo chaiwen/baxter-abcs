@@ -13,25 +13,38 @@
 	<include>
 		<uri>model://cafe_table</uri>
 		<name>cafe_table</name>
-		<pose>1 0 0 0 0 0</pose>
+		<pose>.85 0 0 0 0 0</pose>
 	</include>
 
 	<include>
 		<uri>model://block_A</uri>
 		<name>block_A</name>
-		<pose>0.9 0 0.8 0 0 0</pose>
+		<pose>0.675 -0.17 0.8 0 0 0</pose>
 	</include>
 
 	<include>
 		<uri>model://block_B</uri>
 		<name>block_B</name>
-		<pose>0.95 .2 0.8 0 0 0</pose>
+		<pose>0.602 .18 0.8 0 0 0</pose>
 	</include>
 
 	<include>
 		<uri>model://block_C</uri>
 		<name>block_C</name>
-		<pose>0.7 -.32 0.8 0 0 0</pose>
+		<pose>0.55 -.31 0.8 0 0 0</pose>
+	</include>
+
+	<include>
+		<uri>model://block_D</uri>
+		<name>block_D</name>
+		<pose>0.77 0.02 0.8 0 0 0</pose>
+	</include>
+
+	<include>
+		<uri>model://block_E</uri>
+		<name>block_E</name>
+		<pose>0.82 .33 0.8 0 0 0</pose>
+	</include>
 
 </world>
 </sdf>

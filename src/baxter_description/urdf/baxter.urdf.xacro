@@ -32,6 +32,6 @@
 
     <xacro:include filename="$(find baxter_description)/urdf/sensors/kinect_camera.urdf.xacro" />
     <xacro:kinect_camera_v0 name="kinect_mount" parent="head">
-        <origin xyz="0.93 0.0 0.34" rpy="0 1.57 0" />
+        <origin xyz="0.78 0.0 0.34" rpy="0 1.57 0" />
     </xacro:kinect_camera_v0>
 </robot>
