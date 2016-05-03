@@ -132,9 +132,8 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         float minCX = 50, minCY = 50;
         float maxCX = -50, maxCY = -50;
 
-        float numP = 0;
+        float numP = 0.0;
 
-        float tmpX, tmpY, tmpZ;
         for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit) {
 
             float x = old_filtered->points[*pit].x;
@@ -156,22 +155,11 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
             numP++;
 
 
-            if (numP == 2) {
-                tmpX = x;
-                tmpY = y;
-                tmpZ = z;
-            }
         }
-        sumX = sumX / numP;
-        sumY = sumY / numP;
-        sumZ = sumZ / numP;
-
-
-
-        //sumX = tmpX;
-        //sumY = tmpY;
-        //sumZ = tmpZ;
-
+        float weirdo_error = 1.8;
+        sumX = weirdo_error * sumX / numP;
+        sumY = weirdo_error * sumY / numP;
+        sumZ = weirdo_error * sumZ / numP;
 
 
 
@@ -180,14 +168,20 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 
         int px = 0;
         int pxMin = 0;
+        int pxMax = 0;
         for (int ct = 0; ct < 640; ct++) {
             pcl::PointXYZ pt = original_cloud[ct];
 
             //if (j == 0) cout << pt.x << endl;
             if (sumX < pt.x) {
                 pxMin = px;
+
+
+                //cout << "x before: " << original_cloud[ct - 1].x << ", current: " << pt.x << ", after: " << original_cloud[ct + 1].x;
+                //cout << ", sumX: " << sumX << endl;
                 break;
             }
+            
             px++;
         }
 
@@ -204,14 +198,16 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
             px++;
         }
 
-        float rx = pxMin - 70;
-        float ry = pyMin - 70;
-        float rw = 140;
-        float rh = 140;
+        float rx = pxMin - 50;
+        float ry = pyMin - 50;
+        float rw = 100;
+        float rh = 100;
+
         if (rx < 0) rx = 0;
         if (ry < 0) ry = 0;
-        if (rx + rw > 640) rw = 640 - rw;
-        if (ry + rh > 480) rh = 480 - rh;
+        
+        if (rx + rw > 639) rw = 639 - rx;
+        if (ry + rh > 479) rh = 479 - ry;
         cv::Rect *rect = new cv::Rect(rx, ry, rw, rh);
         blockBounds.push_back(rect);
 
@@ -295,13 +291,13 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
 
             cv::imshow("view", letterImg);
 
-
+/*
             cv::Mat grayLetter;
             cv::cvtColor(letterImg, grayLetter, CV_BGR2GRAY);
             char result;
             result = bestMatch(grayLetter);
             cout << result << endl;
-
+*/
 
             sleep(1);
         }
