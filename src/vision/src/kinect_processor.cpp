@@ -373,14 +373,9 @@ bool getXYZ_ABC(vision::GetXYZFromABC::Request &req,
     return true;
 }
 
-void loadABC(const char *name, cv::Mat *a, cv::Mat *b, cv::Mat *c, cv::Mat *d, cv::Mat *e)
+void loadABC(cv::Mat *a, cv::Mat *b, cv::Mat *c, cv::Mat *d, cv::Mat *e)
 {
-    string path = "";
-
-    if (strcmp(name, "chaiwen") == 0) {
-        path = "/home/cc3636/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/";
-    } else if (strcmp(name, "mango") == 0) {
-        path = "/home/yl2908/baxter-abcs/src/vision/src/templates/";
+    string path = "__PATH__" + "/src/vision/src/templates/";
     }
 
     string pathA = path + "a.png";
@@ -405,10 +400,7 @@ int main(int argc, char **argv)
     cv::Mat a, b, c, d, e, testb;
     char matchResult;
     
-    loadABC("chaiwen", &a, &b, &c, &d, &e);
-    
-    //loadABC("mango", &a, &b, &c, &d, &e);
-    //testb = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/testb.png", 1);
+    loadABC(&a, &b, &c, &d, &e);
     templates[0] = a;
     templates[1] = b;
     templates[2] = c;
@@ -429,39 +421,6 @@ int main(int argc, char **argv)
 
         std::string delimiter = "baxter-abcs";
     }
-    //home/cc3636/Desktop/school/_cs6731_humanoid/baxter-abcs/devel/lib/vision/kinect_processor
-
-
-    /*
-       string alpha ("abcdefghijklmnopqrstuvwxyz");
-       string ext(".png"); 
-       string name;
-       DIR* dirp = null;
-       struct dirent* dp = null;
-       dirp = opendir(".");
-       if (dirp == NULL) {
-       cout << "yea you fucked up" ;
-       }
-       else {
-       dp = readdir(dirp);
-       cout << "\nDirectory name: " ;
-       cout << dp->d_name ;
-       }    
-       for (int i=0; i<alpha.length(); ++i)
-       {    
-       name = alpha[i] + ext;
-       dirp = opendir("templates");
-       while ((dp = readdir(dirp)) != NULL) {
-    //if (strcmp(dp->d_name,name.c_str()) == 0) { 
-    //(void) closedir(dirp);
-    //cout << "\nfound: " + name ;
-    //}
-    cout << dp->d_name;	
-    }
-    (void) closedir(dirp);
-    cout << "\nnot found: " + name;
-    }
-    */
     ros::init(argc, argv, "kinect_listener"); //initialize the node
 
     ros::NodeHandle node;  // access to ROS system

@@ -208,7 +208,6 @@ def pick_up_block(data):
         print("\nPicking...")
         pnp.pick(block_poses[idx])
         print("\nPlacing...")
-        #idx = idx + 1 #(idx+1) % len(block_poses)
         pnp.place(block_poses[idx])
         idx = idx + 1
 
