@@ -1,4 +1,6 @@
 #include <iostream>
+#include <string>
+
 #include <vector>
 #include <math.h>
 #include <dirent.h>
@@ -40,7 +42,6 @@
 using namespace std;
 using namespace cv;
 
-int kcbCount = 0;
 vector<cv::Mat> templates(5); 
 vector<char> corresponding(5); //indices indicate the letter that the template image is
 
@@ -57,9 +58,12 @@ void deleteBlocks();
 
 ros::Publisher pub;
 
+bool stopUpdating = false;
+
 void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
 
+    if (!stopUpdating) {
     // Container for original & filtered data
     pcl::PCLPointCloud2 *cloud = new pcl::PCLPointCloud2;
     pcl::PCLPointCloud2ConstPtr cloudPtr(cloud);
@@ -203,6 +207,7 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 
         if (rx + rw > 639) rw = 639 - rx;
         if (ry + rh > 479) rh = 479 - ry;
+
         cv::Rect *rect = new cv::Rect(rx, ry, rw, rh);
         blockBounds.push_back(rect);
         blockPositions.push_back(pt_xyz);
@@ -222,12 +227,14 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 
     // publish the filtered data, should only be cubes in space now without table!
     pub.publish(output);
+    
+    }
 }
 
 void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
 {
-    static tf::TransformBroadcaster br;
 
+    if (!stopUpdating) {
     try
     {
         matLock.lock();
@@ -262,6 +269,7 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
     catch(cv_bridge::Exception& e)
     {
         ROS_ERROR("could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
+    }
     }
 }
 
@@ -319,6 +327,8 @@ char bestMatch(cv::Mat cubeSnippet)
 bool getXYZ_ABC(vision::GetXYZFromABC::Request &req,
         vision::GetXYZFromABC::Response &res)
 {
+
+    stopUpdating = true;
 
     char reqChar = req.letter.c_str()[0];
 
@@ -410,13 +420,18 @@ int main(int argc, char **argv)
     corresponding[3] = 'd';
     corresponding[4] = 'e'; 
 
-    /* works!
-       matchResult = bestMatch(testb); 
-       cout << "The tester match result: " << endl;
-       cout << matchResult << endl; 
-       */
 
-    cout << kcbCount << endl; 
+    char buff[PATH_MAX];
+    ssize_t len = ::readlink("/proc/self/exe", buff, sizeof(buff) - 1);
+    if (len != -1) {
+        buff[len] = '\0';
+        cout << std::string(buff) << endl;
+
+        std::string delimiter = "baxter-abcs";
+    }
+    //home/cc3636/Desktop/school/_cs6731_humanoid/baxter-abcs/devel/lib/vision/kinect_processor
+
+
     /*
        string alpha ("abcdefghijklmnopqrstuvwxyz");
        string ext(".png"); 
@@ -447,11 +462,7 @@ int main(int argc, char **argv)
     cout << "\nnot found: " + name;
     }
     */
-    //ros::init(argc, argv, "my_tf_broadcaster");
     ros::init(argc, argv, "kinect_listener"); //initialize the node
-
-    //if (argc != 2){ROS_ERROR("need turtle name as argument"); return -1;};
-    //turtle_name = argv[1];
 
     ros::NodeHandle node;  // access to ROS system
 
@@ -460,9 +471,7 @@ int main(int argc, char **argv)
     image_transport::ImageTransport it(node);
     image_transport::Subscriber sub = it.subscribe("/kinect_mount/kinect_mount/rgb/image_raw", 1, kinectCallback);
 
-
     ros::Subscriber sub2 = node.subscribe<sensor_msgs::PointCloud2>("/kinect_mount/kinect_mount/rgb/points", 1, ptCloudCallback);
-
 
     // publisher for modified cloud
     pub = node.advertise<sensor_msgs::PointCloud2>("/kinect_mount/kinect_mount/kinect_object_cloud_filtered", 100);
