@@ -106,6 +106,9 @@ def control():
 
 if __name__ == '__main__':
     
+    x,y,z = get_letter_position('b')
+    print x, y, z
+    
     listener = tf.TransformListener()
     listener.waitForTransform("/kinect_mount_optical_frame", "/world", rospy.Time(), rospy.Duration(4.0))
 
@@ -117,10 +120,6 @@ if __name__ == '__main__':
             
             print trans
             print rot
-
-            x = 0.1
-            y = 0.2
-            z = 0.1
 
 
             

@@ -51,12 +51,12 @@ Mutex matLock;
 cv::Mat rgbImg;
 
 vector<BlockABC *> blocks;
-
 char bestMatch(cv::Mat cubeSnippet);
 void addBlock(char type); 
-    
+void deleteBlocks();
+
 ros::Publisher pub;
-int pclCount = 0;
+
 void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
 
@@ -130,7 +130,7 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         // for each cluster:
         //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
         //cout << "cloud " << j << ": " << old_filtered->points.size() << endl; // total number of points overall
-        float sumX = 0.0, sumY = 0.0, sumZ = 0.0;
+        float centerX = 0.0, centerY = 0.0, centerZ = 0.0;
 
         float minCX = 50, minCY = 50;
         float maxCX = -50, maxCY = -50;
@@ -148,23 +148,18 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
             if (y < minCY) minCY = y;
             if (y > maxCY) maxCY = y;
 
-            if (j == 0) {
-                //cout << numP << ": " << x << ", " << y << ", " << z << endl;
-            }
-            sumX += x;
-            sumY += y;
-            sumZ += z;
+            centerX += x;
+            centerY += y;
+            centerZ += z;
 
             numP++;
-
-
         }
         float weirdo_error = 1.8;
-        sumX = weirdo_error * sumX / numP;
-        sumY = weirdo_error * sumY / numP;
-        sumZ = weirdo_error * sumZ / numP;
+        centerX = weirdo_error * centerX / numP;
+        centerY = weirdo_error * centerY / numP;
+        centerZ = centerZ / numP;
 
-        //cout << "cluster " << j << " center: " << sumX << ", " << sumY << ", " << sumZ << endl;
+        //cout << "cluster " << j << " center: " << centerX << ", " << centerY << ", " << centerZ << endl;
         //cout << "width: " << maxCX - minCX << ", height: " << maxCY - minCY << endl;
 
         int px = 0;
@@ -173,11 +168,11 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         for (int ct = 0; ct < 640; ct++) {
             pcl::PointXYZ pt = original_cloud[ct];
 
-            if (sumX < pt.x) {
+            if (centerX < pt.x) {
                 pxMin = px;
                 break;
             }
-            
+
             px++;
         }
 
@@ -186,7 +181,7 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         for (int ct = 0; ct < 307200; ct += 640) {
             pcl::PointXYZ pt = original_cloud[ct];
 
-            if (sumY < pt.y) {
+            if (centerY < pt.y) {
                 pyMin = px;
                 break;
             }
@@ -200,13 +195,13 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 
         if (rx < 0) rx = 0;
         if (ry < 0) ry = 0;
-        
+
         if (rx + rw > 639) rw = 639 - rx;
         if (ry + rh > 479) rh = 479 - ry;
         cv::Rect *rect = new cv::Rect(rx, ry, rw, rh);
         blockBounds.push_back(rect);
 
-        pcl::PointXYZ *ptxyz = new pcl::PointXYZ(sumX, sumY, sumZ);
+        pcl::PointXYZ *ptxyz = new pcl::PointXYZ(centerX, centerY, centerZ);
         blockPositions.push_back(ptxyz);
 
         j++;
@@ -224,44 +219,47 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 
     // publish the filtered data, should only be cubes in space now without table!
     pub.publish(output);
-
 }
 
 void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
 {
-    //ROS_INFO("I heard: [%s]", msg->data.c_str());
-
-    // msg->width = 640 = number of columns
-    // msg->height = 480 = number of rows
-    // msg->step = 1920
-    // msg->data[] = uint8, size = step * rows 
-
     static tf::TransformBroadcaster br;
 
-    /*tf::Transform transform;
-      transform.setOrigin( tf::Vector3(msg->x, msg->y, 0.0) );
-      tf::Quaternion q;
-      q.setRPY(0, 0, msg->theta);
+    try
+    {
+        matLock.lock();
+        rgbImg = cv_bridge::toCvCopy(msg, "bgr8")->image;
+        matLock.unlock();
+        //cv::cvtColor(tempImg, grayImg, CV_BGR2GRAY);
+        //cv::imshow("view", tempImg);
 
-      transform.setRotation(q);
-      */
-    // send transform, timestamp, parent frame, child frame
-    //br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", turtle_name));
 
-		try
-		{
-				matLock.lock();
-				rgbImg = cv_bridge::toCvCopy(msg, "bgr8")->image;
-				matLock.unlock();
-				//cv::cvtColor(tempImg, grayImg, CV_BGR2GRAY);
-				//cv::imshow("view", tempImg);
-			
-		}
-		catch(cv_bridge::Exception& e)
-		{
-				ROS_ERROR("could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
-		}
+        // keep for testing, continuous checking
+        /*blockLock.lock();
+        matLock.lock();
+        for (int b = 0; b < blockBounds.size(); b++) {
+            cv::Rect *rect = blockBounds[b];
+            cv::Mat letterImg;
+            //cout << "----> imshow " << b << ": " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
+            letterImg = rgbImg(*rect);
 
+            cv::Mat grayImg;
+            cv::cvtColor(letterImg, grayImg, CV_BGR2GRAY);
+            cv::imshow("view", grayImg);
+
+            char result;
+            result = bestMatch(grayImg);
+            cout << "the best match " << b << ": " << result << endl;
+
+            sleep(1);
+        }
+        matLock.unlock();
+        blockLock.unlock();*/
+    }
+    catch(cv_bridge::Exception& e)
+    {
+        ROS_ERROR("could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
+    }
 }
 
 //cubesnippet will be the image within the bounds of the cube found by the point cloud data
@@ -319,77 +317,95 @@ bool getXYZ_ABC(vision::GetXYZFromABC::Request &req,
         vision::GetXYZFromABC::Response &res)
 {
 
+    char reqChar = req.letter.c_str()[0];
+
     blockLock.lock();
-		matLock.lock();
-			
-		for (int b = 0; b < blockBounds.size(); b++) {
-				cv::Rect *rect = blockBounds[b];
-				cv::Mat letterImg;
-				//cout << "----> imshow " << b << ": " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
-				letterImg = rgbImg(*rect);
+    matLock.lock();
 
-				cv::imshow("view", letterImg);
+    //deleteBlocks();
+    for (int b = 0; b < blockBounds.size(); b++) {
+        cv::Rect *rect = blockBounds[b];
+        cv::Mat letterImg;
+        //cout << "----> imshow " << b << ": " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
+        letterImg = rgbImg(*rect);
+        
+        cv::Mat grayImg;
+        cv::cvtColor(letterImg, grayImg, CV_BGR2GRAY);
+        cv::imshow("view", grayImg);
 
-				pcl::PointXYZ *pt = blockPositions[b];
-				cout << "x: " << pt->x << ", " << pt->y << ", " << pt->z << endl;
+        char result = bestMatch(grayImg);
+        cout << "the best match: " << result << endl;
 
-				cv::Mat grayLetter;
-				cv::cvtColor(letterImg, grayLetter, CV_BGR2GRAY);
-				//cv::imshow("view", grayLetter); 
-				char result;
-				result = bestMatch(grayLetter);
-				cout << "the best match: " << result << endl;
-				addBlock(result);
-				blocks[b]->setPosition(pt->x,pt->y,pt->z);	
-				sleep(1);
-		}
-		//cv::imshow("view", rgbImg);
-		blockLock.unlock();
-		matLock.unlock();
+        if (result == reqChar) {
+            
+            pcl::PointXYZ *pt = blockPositions[b];
+            cout << "x: " << pt->x << ", " << pt->y << ", " << pt->z << endl;
 
-		char reqChar;
-		reqChar = (char) req.letter.c_str();
+            res.x = pt->x;
+            res.y = pt->y;
+            res.z = pt->z;
 
-    res.x = 0.0;
-    res.y = 0.0;
-    res.z = 0.0;
-
-    // loop through cluster bounds and image mat to get corresponding position
-		for (int j =0; j < blocks.size(); j++) {
-			if (blocks[j]->type == reqChar) {
-				res.x = blocks[j]->x;
-				res.y = blocks[j]->y;
-				res.z = blocks[j]->z; 
-			}
-		}
-
+            break;
+        }
+        //addBlock(result, pt->x, pt->y, pt->z);
+        sleep(1);
+    }
+    //cv::imshow("view", rgbImg);
+    matLock.unlock();
+    blockLock.unlock();
+    
     ROS_INFO("request: %s", req.letter.c_str());
     ROS_INFO("sending back %lf %lf %lf", (double)res.x, (double)res.y, (double)res.z);
 
     return true;
+}
+
+void loadABC(const char *name, cv::Mat *a, cv::Mat *b, cv::Mat *c, cv::Mat *d, cv::Mat *e)
+{
+    string path = "";
+
+    if (strcmp(name, "chaiwen") == 0) {
+        path = "/home/cc3636/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/";
+    } else if (strcmp(name, "mango") == 0) {
+        path = "/home/yl2908/baxter-abcs/src/vision/src/templates/";
+    }
+
+    string pathA = path + "a.png";
+    *a = cv::imread(pathA, CV_LOAD_IMAGE_GRAYSCALE);
+
+    string pathB = path + "b.png";
+    *b = cv::imread(pathB, CV_LOAD_IMAGE_GRAYSCALE);
+
+    string pathC = path + "c.png";
+    *c = cv::imread(pathC, CV_LOAD_IMAGE_GRAYSCALE);
+
+    string pathD = path + "d.png";
+    *d = cv::imread(pathD, CV_LOAD_IMAGE_GRAYSCALE);
+
+    string pathE = path + "e.png";
+    *e = cv::imread(pathE, CV_LOAD_IMAGE_GRAYSCALE);
+
 }
 int main(int argc, char **argv)
 {
     //load images into template library
     cv::Mat a, b, c, d, e, testb;
     char matchResult;
-    a = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/a.png", CV_LOAD_IMAGE_GRAYSCALE);
-    b = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/b.png", CV_LOAD_IMAGE_GRAYSCALE);
-    c = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/c.png", CV_LOAD_IMAGE_GRAYSCALE);
-		d = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/d.png", CV_LOAD_IMAGE_GRAYSCALE);
-		e = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/e.png", CV_LOAD_IMAGE_GRAYSCALE);
-
+    
+    loadABC("chaiwen", &a, &b, &c, &d, &e);
+    
+    //loadABC("mango", &a, &b, &c, &d, &e);
     //testb = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/testb.png", 1);
-		templates[0] = a;
-		templates[1] = b;
-		templates[2] = c;
-		templates[3] = d;
-		templates[4] = e;
-		corresponding[0] = 'a';
-		corresponding[1] = 'b';
-		corresponding[2] = 'c';
-		corresponding[3] = 'd';
-		corresponding[4] = 'e'; 
+    templates[0] = a;
+    templates[1] = b;
+    templates[2] = c;
+    templates[3] = d;
+    templates[4] = e;
+    corresponding[0] = 'a';
+    corresponding[1] = 'b';
+    corresponding[2] = 'c';
+    corresponding[3] = 'd';
+    corresponding[4] = 'e'; 
 
     /* works!
        matchResult = bestMatch(testb); 
@@ -472,7 +488,8 @@ void deleteBlocks() {
 
 /* adds a block to vector of blocks */
 // eg: addBlock('a');
-void addBlock(char type) {
+void addBlock(char type, float x, float y, float z) {
     BlockABC *block = new BlockABC(type);
+    block->setPosition(x, y, z);
     blocks.push_back(block);
 }
