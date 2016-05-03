@@ -125,93 +125,101 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
         //cout << "cloud " << j << ": " << old_filtered->points.size() << endl; // total number of points overall
         float sumX = 0.0, sumY = 0.0, sumZ = 0.0;
-        
-        float minCX = std::numeric_limits<float>::max();
-        float maxCX = std::numeric_limits<float>::min();
-        float minCY = minCX;
-        float maxCY = maxCX;
+
+        float minCX = 50, minCY = 50;
+        float maxCX = -50, maxCY = -50;
 
         float numP = 0;
+
+        float tmpX, tmpY, tmpZ;
         for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit) {
-            //cout << "point" << t << ": " << old_filtered->points[*pit] << endl;
 
             float x = old_filtered->points[*pit].x;
             float y = old_filtered->points[*pit].y;
             float z = old_filtered->points[*pit].z;
-
-            sumX += x;
-            sumY += y;
-            sumZ += z;
 
             if (x < minCX) minCX = x;
             if (x > maxCX) maxCX = x;
             if (y < minCY) minCY = y;
             if (y > maxCY) maxCY = y;
 
+            if (j == 0) {
+                //cout << numP << ": " << x << ", " << y << ", " << z << endl;
+            }
+            sumX += x;
+            sumY += y;
+            sumZ += z;
+
             numP++;
-            //cout << x << "," << y << "," << z << endl;
+
+
+            if (numP == 2) {
+                tmpX = x;
+                tmpY = y;
+                tmpZ = z;
+            }
         }
         sumX = sumX / numP;
         sumY = sumY / numP;
         sumZ = sumZ / numP;
 
-        j++;
-        //cout << "cluster " << j << " center: " << sumX << ", " << sumY << ", " << sumZ << endl;
-        //cout << "bounds: " << minCX << ", " << maxCX << ", " << minCY << ", " << maxCY << endl;
 
-        
-        
+
+        //sumX = tmpX;
+        //sumY = tmpY;
+        //sumZ = tmpZ;
+
+
+
+
+        cout << "cluster " << j << " center: " << sumX << ", " << sumY << ", " << sumZ << endl;
+        cout << "width: " << maxCX - minCX << ", height: " << maxCY - minCY << endl;
+
         int px = 0;
         int pxMin = 0;
-        int pxMax = 0;
         for (int ct = 0; ct < 640; ct++) {
             pcl::PointXYZ pt = original_cloud[ct];
 
+            //if (j == 0) cout << pt.x << endl;
             if (sumX < pt.x) {
                 pxMin = px;
                 break;
             }
             px++;
         }
+
         px = 0;
         int pyMin = 0;
-        int pyMax = 0;
         for (int ct = 0; ct < 307200; ct += 640) {
             pcl::PointXYZ pt = original_cloud[ct];
 
+            //if (j == 0) cout << pt.y << endl;
             if (sumY < pt.y) {
                 pyMin = px;
                 break;
             }
             px++;
         }
-        //cout << "pixel bounds ----> " << pxMin << ", " << pxMax << ", " << pyMin << ", " << pyMax << endl;
-        /*for (pcl::PointCloud<pcl::PointXYZ>::const_iterator ct = original_cloud.begin();
-            ct != original_cloud.end(); ++ct) {
-
-            pcl::PointXYZ pt = *ct;
-
-            if (test % 640 == 1) {
-                cout << pt.x << endl;
-            }
-            px++;
-        }*/
-
-        float rx = pxMin - 50;
-        float ry = pyMin - 50;
-        float rw = 100;
-        float rh = 100;
+        
+        float rx = pxMin - 70;
+        float ry = pyMin - 70;
+        float rw = 140;
+        float rh = 140;
+        if (rx < 0) rx = 0;
+        if (ry < 0) ry = 0;
+        if (rx + rw > 640) rw = 640 - rw;
+        if (ry + rh > 480) rh = 480 - rh;
         cv::Rect *rect = new cv::Rect(rx, ry, rw, rh);
         blockBounds.push_back(rect);
 
+        j++;
     }
     blockLock.unlock();
-//    cout << "there were " << j << " clusters found" << endl;
+    cout << ">>> there were " << j << " clusters found" << endl;
 
     // convert back to PointCloud2 for display via Ros message
     pcl::PCLPointCloud2 new_cloud;
     pcl::toPCLPointCloud2(*old_filtered, new_cloud);
-    //pcl::PCLPointCloud2 = ROS message type replacing sensors_msgs::PointCloud2
 
     // Convert to ROS data type
     sensor_msgs::PointCloud2 output;
@@ -220,19 +228,6 @@ void ptCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     // publish the filtered data, should only be cubes in space now without table!
     pub.publish(output);
 
-
-
-    //pcl::PointCloud<pcl::PointXYZRGB> *cloudRGB = new pcl::PointCloud<pcl::PointXYZRGB>;
-    //pcl::PCLPointCloud2ConstPtr cloudPtr(cloud);
-
-    // Convert to PCL data type
-    //pcl::fromROSMsg(*cloud_msg, *cloudRGB);
-
-    /*sensor_msgs::Image image_;
-    pcl::toROSMsg(output, image_);
-    cv::Mat tempImg;
-    tempImg = cv_bridge::toCvCopy(image_, "bgr8")->image;
-    cv::imshow("view", tempImg);*/
 }
 
 void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
@@ -299,6 +294,8 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
             //if (b == 2) {
                 letterImg = rgbImg(*rect);
                 cv::imshow("view", letterImg);
+
+                cout << rgbImg.size() << endl;
             //}
                 sleep(1);
         }
