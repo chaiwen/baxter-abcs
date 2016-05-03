@@ -22,6 +22,7 @@ from geometry_msgs.msg import (
     Quaternion,
 )
 from std_msgs.msg import (
+    String,
     Header,
     Empty,
 )
@@ -222,7 +223,7 @@ def main():
    can improve on this demo by adding perception and feedback to close
    the loop.
    """
-    rospy.init_node("pick_up_blocks")
+    rospy.init_node("pick_up_blocks", anonymous=False)
     
     # Wait for the All Clear from emulator startup
     rospy.wait_for_message("/robot/sim/started", Empty)
