@@ -41,8 +41,8 @@ using namespace std;
 using namespace cv;
 
 int kcbCount = 0;
-vector<cv::Mat> templates(3); 
-vector<char> corresponding(3); //indices indicate the letter that the template image is
+vector<cv::Mat> templates(5); 
+vector<char> corresponding(5); //indices indicate the letter that the template image is
 
 Mutex blockLock;
 vector<cv::Rect *> blockBounds;
@@ -289,15 +289,13 @@ void kinectCallback(const sensor_msgs::ImageConstPtr& msg)
             cout << "----> imshow " << b << ": " << rect->x << ", " << rect->y << ", " << rect->width << ", " << rect->height << endl;
             letterImg = rgbImg(*rect);
 
-            cv::imshow("view", letterImg);
-
-/*
             cv::Mat grayLetter;
             cv::cvtColor(letterImg, grayLetter, CV_BGR2GRAY);
+						cv::imshow("view", grayLetter); 
             char result;
             result = bestMatch(grayLetter);
-            cout << result << endl;
-*/
+            cout << "the best match: " << result << endl;
+
 
             sleep(1);
         }
@@ -399,18 +397,25 @@ bool getXYZ_ABC(vision::GetXYZFromABC::Request &req,
 int main(int argc, char **argv)
 {
     //load images into template library
-    cv::Mat a, b, c, testb;
+    cv::Mat a, b, c, d, e, testb;
     char matchResult;
-    a = cv::imread("~/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/a.png", CV_LOAD_IMAGE_GRAYSCALE);
-    b = cv::imread("~/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/b.png", CV_LOAD_IMAGE_GRAYSCALE);
-    c = cv::imread("~/Desktop/school/_cs6731_humanoid/baxter-abcs/src/vision/src/templates/c.png", CV_LOAD_IMAGE_GRAYSCALE);
+    a = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/a.png", CV_LOAD_IMAGE_GRAYSCALE);
+    b = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/b.png", CV_LOAD_IMAGE_GRAYSCALE);
+    c = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/c.png", CV_LOAD_IMAGE_GRAYSCALE);
+		d = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/d.png", CV_LOAD_IMAGE_GRAYSCALE);
+		e = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/e.png", CV_LOAD_IMAGE_GRAYSCALE);
+
     //testb = cv::imread("/home/yl2908/baxter-abcs/src/vision/src/templates/testb.png", 1);
-    templates[0] = a;
-    templates[1] = b;
-    templates[2] = c;
-    corresponding[0] = 'a';
-    corresponding[1] = 'b';
-    corresponding[2] = 'c';
+		templates[0] = a;
+		templates[1] = b;
+		templates[2] = c;
+		templates[3] = d;
+		templates[4] = e;
+		corresponding[0] = 'a';
+		corresponding[1] = 'b';
+		corresponding[2] = 'c';
+		corresponding[3] = 'd';
+		corresponding[4] = 'e'; 
 
     /* works!
        matchResult = bestMatch(testb); 
